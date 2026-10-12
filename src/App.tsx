@@ -189,6 +189,42 @@ function App() {
               <p className="app-subtitle">Rally photo en Corse</p>
             </div>
           </div>
+
+          {/* Navigation directe visible uniquement sur PC / grand écran */}
+          <nav className="desktop-nav">
+            <button
+              type="button"
+              className={`desktop-nav-link ${currentScreen === 'welcome' && !selectedQuest ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedQuest(null);
+                setCurrentScreen('welcome');
+              }}
+            >
+              Accueil
+            </button>
+            <button
+              type="button"
+              className={`desktop-nav-link ${currentScreen === 'quests' || selectedQuest ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedQuest(null);
+                setCurrentScreen('quests');
+              }}
+            >
+              Quêtes
+            </button>
+            {authUser?.isAdmin && (
+              <button
+                type="button"
+                className={`desktop-nav-link desktop-nav-admin ${currentScreen === 'admin' ? 'active' : ''}`}
+                onClick={() => {
+                  setSelectedQuest(null);
+                  setCurrentScreen('admin');
+                }}
+              >
+                👑 Espace Admin
+              </button>
+            )}
+          </nav>
         </div>
 
         {/* Droite : Sync (admin), Profil/Login & Score */}

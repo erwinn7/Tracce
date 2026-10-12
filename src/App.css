@@ -6,6 +6,20 @@
   display: flex;
   flex-direction: column;
   padding: var(--spacing-md);
+  transition: max-width 0.3s ease;
+}
+
+@media (min-width: 769px) {
+  .app-container {
+    max-width: 1060px;
+    padding: var(--spacing-lg) var(--spacing-xl);
+  }
+}
+
+@media (min-width: 1240px) {
+  .app-container {
+    max-width: 1200px;
+  }
 }
 
 /* En-tête */
@@ -22,7 +36,60 @@
 .header-left {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-md);
+}
+
+/* Navigation sur grand écran (PC) */
+.desktop-nav {
+  display: none;
+}
+
+@media (min-width: 769px) {
+  .desktop-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-left: var(--spacing-sm);
+  }
+
+  .desktop-nav-link {
+    background: none;
+    border: 1px solid transparent;
+    padding: 0.45rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-family: inherit;
+  }
+
+  .desktop-nav-link:hover {
+    color: var(--color-primary);
+    background-color: var(--color-surface-hover);
+  }
+
+  .desktop-nav-link.active {
+    color: var(--color-text-inverse);
+    background-color: var(--color-primary);
+  }
+
+  .desktop-nav-link.desktop-nav-admin {
+    color: #92400e;
+    background-color: #fef3c7;
+    border: 1px solid #fde68a;
+  }
+
+  .desktop-nav-link.desktop-nav-admin:hover {
+    background-color: #fde68a;
+  }
+
+  .desktop-nav-link.desktop-nav-admin.active {
+    background-color: #d97706;
+    color: #ffffff;
+    border-color: #d97706;
+  }
 }
 
 .btn-hamburger {
@@ -44,6 +111,12 @@
 .btn-hamburger:hover {
   background-color: var(--color-surface-hover);
   border-color: var(--color-primary);
+}
+
+@media (min-width: 769px) {
+  .btn-hamburger {
+    display: none !important;
+  }
 }
 
 .hamburger-line {
@@ -226,6 +299,20 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
+}
+
+@media (min-width: 769px) {
+  .quests-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+  }
+}
+
+@media (min-width: 1200px) {
+  .quests-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .quest-card {
@@ -1163,7 +1250,7 @@
 .welcome-hero-badge {
   position: absolute;
   top: 1rem;
-  left: 1rem;
+  right: 1rem;
   background-color: rgba(45, 74, 62, 0.9);
   color: var(--color-text-inverse);
   padding: 0.35rem 0.8rem;
@@ -1171,6 +1258,7 @@
   font-size: 0.8rem;
   font-weight: 600;
   backdrop-filter: blur(4px);
+  z-index: 2;
 }
 
 .welcome-content {
@@ -1199,6 +1287,19 @@
   flex-direction: column;
   gap: var(--spacing-sm);
   margin: var(--spacing-sm) 0;
+}
+
+@media (min-width: 769px) {
+  .welcome-steps-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-md);
+  }
+
+  .welcome-hero-img {
+    max-height: 420px;
+    object-fit: cover;
+  }
 }
 
 .welcome-step-card {
