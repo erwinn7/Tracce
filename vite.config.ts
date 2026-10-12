@@ -15,7 +15,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       scope: '/app/',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'data/quests.json'],
       manifest: {
         name: 'Tracce',
         short_name: 'Tracce',
@@ -47,7 +47,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2,json}'],
       },
     }),
   ],

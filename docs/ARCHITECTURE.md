@@ -74,12 +74,38 @@ Firebase (plan Spark)
 | Ressource | Stratégie | Stockage | Pourquoi |
 |-----------|-----------|----------|----------|
 | App shell (HTML, CSS, JS) | Precache | Cache Storage | Disponibilité immédiate hors ligne |
-| `quests.json` | Precache | Cache Storage | Catalogue consultable sans réseau |
-| `favicon.svg`, icônes PNG | Precache | Cache Storage | Branding hors ligne |
+| `data/quests.json` | Precache | Cache Storage | Catalogue statique complet consultable sans réseau (mis à jour à chaque nouveau build) |
+| `favicon.svg`, icônes PNG | Precache | Cache Storage | Branding hors ligne et icônes d'installation |
 | API Firestore | NetworkFirst | Cache Storage | Données fraîches quand possible, fallback hors ligne |
 | Tuiles OSM (M5, optionnel) | CacheFirst (à l'usage) | Cache Storage | Pas de préchargement massif (politique OSM) |
 
-> À compléter en M3 avec les stratégies runtime détaillées.
+### 4.2 Modèle de données du catalogue (statique)
+
+Le catalogue de quêtes est stocké dans `public/data/quests.json` et directement intégré au précache Workbox (`vite.config.ts`) :
+
+```ts
+type Quest = {
+  id: string;            // slug unique (ex. "ajaccio-maison-bonaparte")
+  cityId: "ajaccio" | "bastia" | "corte";
+  type: "ville" | "colline" | "sommet" | "site-naturel";
+  name: string;
+  description: string;   // Texte original décrivant le lieu
+  lat: number;           // Coordonnée GPS exacte (source OSM/Wikidata)
+  lng: number;           // Coordonnée GPS exacte (source OSM/Wikidata)
+  altitudeM?: number;    // Altitude en mètres (si sommet ou colline)
+  radiusM: number;       // Rayon de validation (100 m ou 150 m)
+  points: number;        // Points attribués (10, 25 ou 50 pts)
+  source: "osm" | "wikidata" | "manuel";
+  osmType?: "node" | "way" | "relation";
+  osmId?: number;
+  wikidata?: string;
+};
+
+type Catalog = {
+  version: string;
+  quests: Quest[];
+};
+```
 
 ## 5. Mise à jour
 
