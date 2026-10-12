@@ -3,10 +3,11 @@ import type { CityId, QuestType, Quest } from '../types/quest';
 
 interface AdminAddPlaceProps {
   onAddQuest: (quest: Quest) => Promise<void>;
+  onSyncQuests?: () => Promise<number>;
   onBack: () => void;
 }
 
-export const AdminAddPlace: React.FC<AdminAddPlaceProps> = ({ onAddQuest, onBack }) => {
+export const AdminAddPlace: React.FC<AdminAddPlaceProps> = ({ onAddQuest, onSyncQuests, onBack }) => {
   const [name, setName] = useState('');
   const [cityId, setCityId] = useState<CityId>('ajaccio');
   const [type, setType] = useState<QuestType>('ville');
@@ -20,6 +21,8 @@ export const AdminAddPlace: React.FC<AdminAddPlaceProps> = ({ onAddQuest, onBack
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
   const [geoFeedback, setGeoFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [syncingCloud, setSyncingCloud] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
 
   // Géolocalisation directe de l'administrateur sur le terrain
   const handleUseCurrentPosition = () => {
@@ -68,6 +71,21 @@ export const AdminAddPlace: React.FC<AdminAddPlaceProps> = ({ onAddQuest, onBack
     );
   };
 
+  // Synchronisation manuelle vers le cloud
+  const handleManualSync = async () => {
+    if (!onSyncQuests) return;
+    try {
+      setSyncingCloud(true);
+      setSyncFeedback(null);
+      const count = await onSyncQuests();
+      setSyncFeedback(`${count} lieu(x) synchronisé(s) dans le Cloud Firestore avec succès !`);
+    } catch (e) {
+      setSyncFeedback('Erreur lors de la synchronisation.');
+    } finally {
+      setSyncingCloud(false);
+    }
+  };
+
   // Ajustement automatique des points / rayons recommandés selon le type
   const handleTypeChange = (newType: QuestType) => {
     setType(newType);
@@ -102,7 +120,9 @@ export const AdminAddPlace: React.FC<AdminAddPlaceProps> = ({ onAddQuest, onBack
         description: description.trim(),
         lat: parseFloat(lat),
         lng: parseFloat(lng),
-        altitudeM: altitudeM ? parseInt(altitudeM, 10) : undefined,
+        ...(altitudeM && !isNaN(parseInt(altitudeM, 10))
+          ? { altitudeM: parseInt(altitudeM, 10) }
+          : {}),
         radiusM: parseInt(radiusM, 10) || 100,
         points: parseInt(points, 10) || 10,
         source: 'manuel',
@@ -138,6 +158,60 @@ export const AdminAddPlace: React.FC<AdminAddPlaceProps> = ({ onAddQuest, onBack
         <p className="admin-desc">
           Ce lieu sera directement intégré au catalogue de quêtes et jouable sur le terrain.
         </p>
+
+        {onSyncQuests && (
+          <div
+            style={{
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              padding: '14px 16px',
+              marginBottom: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '10px',
+              }}
+            >
+              <div>
+                <strong style={{ fontSize: '0.95rem' }}>☁️ Synchronisation Cloud (Firestore)</strong>
+                <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                  Synchronisez vos lieux créés sur ce mobile pour les retrouver sur votre ordinateur.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleManualSync}
+                disabled={syncingCloud}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                }}
+              >
+                {syncingCloud ? '⏳ Synchronisation...' : '🔄 Forcer la synchronisation'}
+              </button>
+            </div>
+            {syncFeedback && (
+              <div style={{ fontSize: '0.85rem', color: '#16a34a', fontWeight: 600, marginTop: '4px' }}>
+                ✅ {syncFeedback}
+              </div>
+            )}
+          </div>
+        )}
 
         {successMsg && (
           <div className="alert-success">

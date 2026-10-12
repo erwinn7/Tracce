@@ -27,6 +27,7 @@ export const db = app
       localCache: persistentLocalCache({
         tabManager: persistentMultipleTabManager(),
       }),
+      ignoreUndefinedProperties: true,
     })
   : null;
 

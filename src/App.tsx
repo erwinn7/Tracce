@@ -67,7 +67,7 @@ function App() {
     };
   }, []);
 
-  const { catalog, loading: loadingCatalog, error: errorCatalog, addCustomQuest } = useCatalog();
+  const { catalog, loading: loadingCatalog, error: errorCatalog, addCustomQuest, syncLocalQuests } = useCatalog();
   const { canShowPrompt, isIos, installApp, dismissInstall } = useInstallPrompt();
   const { completions, saveCompletion, resetDemo, refreshCompletions } = useCompletions();
   const { user: authUser, login: authLogin, logout: authLogout } = useAuth();
@@ -331,6 +331,7 @@ function App() {
               onAddQuest={async (q) => {
                 await addCustomQuest(q);
               }}
+              onSyncQuests={syncLocalQuests}
               onBack={() => setCurrentScreen('quests')}
             />
           ) : (
