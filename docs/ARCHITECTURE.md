@@ -165,8 +165,27 @@ type Catalog = {
 | Caméra (`<input capture>`) | Clic « Valider ici » | Geste utilisateur explicite | Message d'erreur + retour liste |
 | Géolocalisation | Après prise de photo | Nécessaire pour la validation | Message + suggestion d'activer dans les réglages |
 
-> Écran d'explication affiché avant la première demande de permission.
-> Rejet si `accuracyM > 50 m` (décision D4).
+### 7.1 Règle de validation et flux d'acquisition (M2)
+
+- **Ordre d'exécution** :
+  1. Écran d'explication de permission (déclenché sur geste utilisateur « Valider ici »).
+  2. Capture photo via `<input type="file" accept="image/*" capture="environment">`. Compression côté client via `createImageBitmap(file, { imageOrientation: 'from-image' })` en WebP (1280 px max, qualité 0.8, ≈150 Ko) avec repli JPEG. Aperçu affiché avec option « Reprendre ».
+  3. Géolocalisation via `navigator.geolocation.getCurrentPosition` (`enableHighAccuracy: true`, `timeout: 15000`, `maximumAge: 0`). Gestion détaillée des erreurs : refusée (`PERMISSION_DENIED`), indisponible (`POSITION_UNAVAILABLE`), expiration (`TIMEOUT`).
+  4. Calcul orthodromique de la distance par la formule de **Haversine**.
+  5. Règle de validation stricte (Décisions D4 & D7) :
+     - La précision du signal GPS doit être **strictement ≤ 50 m**. Si `accuracyM > 50 m`, refus strict avec le message explicite : *« Signal GPS trop imprécis, avance à découvert et réessaie »* et bouton Réessayer.
+     - La distance à la cible doit être **≤ radiusM**.
+  6. Écran de confirmation et persistance locale immédiate dans **IndexedDB** (`completions` + `photos`).
+  7. **Recalcul du score** : les points ne sont jamais incrémentés dans un compteur fixe mais recalculés dynamiquement par `computeScore` sur l'ensemble des quêtes uniques complétées.
+
+### 7.2 Mode Démo
+
+- Réglage commutable visible directement dans l'en-tête de l'application.
+- Permet à l'évaluateur de valider n'importe quelle quête sans être physiquement présent en Corse.
+- Une quête validée en démo porte le flag `isDemo: true`, affiche un badge distinctif `🧪 Démo`, alimente un score démo séparé (`+X démo`) et ne compte **jamais** dans le score réel.
+- Bouton « Réinitialiser démo » permettant de purger en un clic les validations de test.
+
+> Rejet systématique si `accuracyM > 50 m` (décisions D4 et D7).
 
 ## 8. Notifications
 

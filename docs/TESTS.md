@@ -37,3 +37,22 @@
 | 9 | Mémorisation de fermeture (7 jours) | Chrome / Safari | ✅ Réussi | Fermeture stockée dans `localStorage`, réapparition bloquée 7 jours |
 | 10 | Bannière de mise à jour flottante | Chrome Desktop | ✅ Réussi | Prioritaire sur l'installation, recharge via `updateServiceWorker(true)` |
 | 11 | Vérification périodique MAJ | Navigateur | ✅ Réussi | Exécuté toutes les heures et au retour au premier plan (`visibilitychange`) |
+
+---
+
+## M2 — Validation d'une quête
+
+**Date** : 2026-10-12
+
+| # | Test | Appareil / Navigateur | Résultat | Notes |
+|---|------|----------------------|----------|-------|
+| 1 | Tests unitaires Vitest (haversine, isValid, computeScore) | Node / Vitest | ✅ Réussi | 11 tests réussis (distance à ±1%, limites, unicité score, démo) |
+| 2 | Écran d'explication de permission préalable | Chrome Desktop / Mobile | ✅ Réussi | Affiché avant tout accès caméra/GPS |
+| 3 | Capture photo avec respect de l'orientation | Chrome Mobile / Desktop | ✅ Réussi | `createImageBitmap` avec `from-image`, compression WebP (~150 Ko) |
+| 4 | Rejet strict précision GPS > 50 m | Simulateur DevTools GPS | ✅ Réussi | Message « Signal GPS trop imprécis, avance à découvert et réessaie » |
+| 5 | Rejet si distance > rayon | Simulateur DevTools GPS | ✅ Réussi | Refus si position hors rayon du lieu |
+| 6 | Validation réussie (distance ≤ rayon && précision ≤ 50m) | Simulateur DevTools GPS | ✅ Réussi | Quête enregistrée, points attribués |
+| 7 | Persistance IndexedDB (`completions` + `photos`) | Chrome DevTools (IndexedDB) | ✅ Réussi | Données et blob photo conservés après rechargement |
+| 8 | Mode Démo commutable | Chrome Desktop | ✅ Réussi | Validation sans GPS, score démo séparé (`+X démo`), réinitialisation en 1 clic |
+| 9 | Score recalculé dynamiquement | Chrome Desktop | ✅ Réussi | Dérivé du catalogue, pas de compteur brut |
+| 10 | Fonctionnement hors ligne de la validation | Chrome DevTools (Offline) | ✅ Réussi | Photo compressée et enregistrée en IndexedDB en mode avion |

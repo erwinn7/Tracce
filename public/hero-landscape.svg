@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" fill="none">
+  <defs>
+    <linearGradient id="skyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#E8F1ED" />
+      <stop offset="100%" stop-color="#F4FAF7" />
+    </linearGradient>
+    <linearGradient id="mtnBack" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#7B998B" />
+      <stop offset="100%" stop-color="#5A7D6E" />
+    </linearGradient>
+    <linearGradient id="mtnFront" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3D6353" />
+      <stop offset="100%" stop-color="#2D4A3E" />
+    </linearGradient>
+    <linearGradient id="seaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#A5C9BD" />
+      <stop offset="100%" stop-color="#6E9E8E" />
+    </linearGradient>
+  </defs>
+
+  <!-- Fond Ciel -->
+  <rect width="800" height="500" rx="24" fill="url(#skyGrad)"/>
+
+  <!-- Soleil doux corse -->
+  <circle cx="640" cy="110" r="50" fill="#FDE68A" opacity="0.8"/>
+
+  <!-- Chaîne de montagnes lointaines -->
+  <path d="M0 320 L150 210 L280 290 L440 160 L600 270 L730 190 L800 240 L800 500 L0 500 Z" fill="url(#mtnBack)" opacity="0.6"/>
+
+  <!-- Montagnes de premier plan (relief insulaire) -->
+  <path d="M0 380 L120 280 L230 360 L380 230 L530 350 L680 260 L800 340 L800 500 L0 500 Z" fill="url(#mtnFront)"/>
+
+  <!-- Mer Méditerranée / Littoral -->
+  <path d="M0 430 Q200 410 400 435 T800 420 L800 500 L0 500 Z" fill="url(#seaGrad)" opacity="0.9"/>
+
+  <!-- Repère GPS interactif stylisé -->
+  <g transform="translate(380, 160)">
+    <circle cx="20" cy="20" r="28" fill="#FFFFFF" opacity="0.25"/>
+    <circle cx="20" cy="20" r="18" fill="#FFFFFF" opacity="0.9"/>
+    <path d="M20 5 C11.7 5 5 11.7 5 20 C5 31.2 20 44 20 44 C20 44 35 31.2 35 20 C35 11.7 28.3 5 20 5 Z" fill="#2D4A3E"/>
+    <circle cx="20" cy="18" r="5" fill="#FFFFFF"/>
+  </g>
+</svg>

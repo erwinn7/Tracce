@@ -2,13 +2,20 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useCatalog } from './hooks/useCatalog';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
+import { useCompletions } from './hooks/useCompletions';
+import { WelcomeScreen } from './components/WelcomeScreen';
 import { CitySelector } from './components/CitySelector';
 import { QuestCard } from './components/QuestCard';
 import { QuestDetail } from './components/QuestDetail';
+import { QuestValidationModal } from './components/QuestValidationModal';
 import { FloatingBanner } from './components/FloatingBanner';
+import { computeScore } from './utils/geo';
 import type { CityId, QuestType, Quest } from './types/quest';
 import { TYPE_LABELS } from './types/quest';
+import type { LocalCompletion } from './lib/db';
 import './App.css';
+
+type Screen = 'welcome' | 'quests';
 
 function App() {
   const swRegistrationRef = useRef<ServiceWorkerRegistration | undefined>(undefined);
@@ -53,13 +60,42 @@ function App() {
     };
   }, []);
 
-  const { catalog, loading, error } = useCatalog();
+  const { catalog, loading: loadingCatalog, error: errorCatalog } = useCatalog();
   const { canShowPrompt, isIos, installApp, dismissInstall } = useInstallPrompt();
+  const { completions, saveCompletion, resetDemo } = useCompletions();
+
+  // Écran actif : accueil ou liste des quêtes
+  const [currentScreen, setCurrentScreen] = useState<Screen>('welcome');
+
+  // Mode Démo
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
+
+  // Modal de validation
+  const [validatingQuest, setValidatingQuest] = useState<Quest | null>(null);
 
   // Navigation & filtres
   const [selectedCity, setSelectedCity] = useState<CityId | 'all'>('all');
   const [selectedType, setSelectedType] = useState<QuestType | 'all'>('all');
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
+
+  // Map des complétions par questId
+  const completionsMap = useMemo(() => {
+    const map = new Map<string, LocalCompletion>();
+    for (const c of completions) {
+      map.set(c.questId, c);
+    }
+    return map;
+  }, [completions]);
+
+  // Scores recalculés à la volée
+  const realScore = useMemo(
+    () => computeScore(completions, catalog, false),
+    [completions, catalog]
+  );
+  const demoScore = useMemo(
+    () => computeScore(completions, catalog, true),
+    [completions, catalog]
+  );
 
   const filteredQuests = useMemo(() => {
     if (!catalog) return [];
@@ -111,19 +147,98 @@ function App() {
 
       {/* En-tête */}
       <header className="app-header">
-        <div className="header-brand" onClick={() => setSelectedQuest(null)} role="button" tabIndex={0}>
+        <div
+          className="header-brand"
+          onClick={() => {
+            setSelectedQuest(null);
+            setCurrentScreen('welcome');
+          }}
+          role="button"
+          tabIndex={0}
+        >
           <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="Logo Tracce" className="app-logo" />
           <div className="header-titles">
             <h1 className="app-title">Tracce</h1>
             <p className="app-subtitle">Rally photo géolocalisé en Corse</p>
           </div>
         </div>
+
+        {/* Score & Navigation Accueil / Quêtes */}
+        <div className="header-scores-wrap">
+          {currentScreen === 'quests' ? (
+            <button
+              type="button"
+              className="btn-header-nav"
+              onClick={() => {
+                setSelectedQuest(null);
+                setCurrentScreen('welcome');
+              }}
+            >
+              Accueil
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn-header-nav btn-header-nav-active"
+              onClick={() => setCurrentScreen('quests')}
+            >
+              Quêtes
+            </button>
+          )}
+
+          <div className="score-badge">
+            <span className="score-val">{realScore}</span>
+            <span className="score-lbl">pts</span>
+          </div>
+          {demoScore > 0 && (
+            <div className="score-badge score-badge-demo" title="Points en mode démo (séparés)">
+              <span className="score-val">+{demoScore}</span>
+              <span className="score-lbl">démo</span>
+            </div>
+          )}
+        </div>
       </header>
 
-      {/* Contenu principal */}
+      {/* Barre Réglages & Mode Démo (uniquement sur l'écran des quêtes ou si démo active) */}
+      {currentScreen === 'quests' && (
+        <section className="demo-control-bar">
+          <label className="demo-toggle-label">
+            <input
+              type="checkbox"
+              checked={isDemoMode}
+              onChange={(e) => setIsDemoMode(e.target.checked)}
+            />
+            <span className="demo-toggle-text">
+              Mode Démo {isDemoMode ? '(actif - sans GPS)' : ''}
+            </span>
+          </label>
+          {demoScore > 0 && (
+            <button
+              type="button"
+              className="btn-reset-demo"
+              onClick={resetDemo}
+              title="Effacer toutes les validations de démo"
+            >
+              Réinitialiser démo
+            </button>
+          )}
+        </section>
+      )}
+
+      {/* Contenu principal selon l'écran actif */}
       <main className="app-main">
-        {selectedQuest ? (
-          <QuestDetail quest={selectedQuest} onBack={() => setSelectedQuest(null)} />
+        {currentScreen === 'welcome' ? (
+          <WelcomeScreen
+            onStart={() => setCurrentScreen('quests')}
+            totalQuests={catalog?.quests.length ?? 0}
+          />
+        ) : selectedQuest ? (
+          <QuestDetail
+            quest={selectedQuest}
+            completion={completionsMap.get(selectedQuest.id)}
+            onStartValidation={() => setValidatingQuest(selectedQuest)}
+            onBack={() => setSelectedQuest(null)}
+          />
         ) : (
           <>
             {/* Écran 1: Sélecteur de ville */}
@@ -152,14 +267,17 @@ function App() {
             <section className="section-quests">
               <div className="section-header-row">
                 <h2 className="section-title">
-                  Quêtes disponibles ({filteredQuests.length})
+                  Quêtes ({filteredQuests.length})
                 </h2>
+                <span className="section-subtitle">
+                  {completions.length} validée{completions.length > 1 ? 's' : ''}
+                </span>
               </div>
 
-              {loading && <p className="status-msg">Chargement des quêtes...</p>}
-              {error && <p className="status-msg error-msg">{error}</p>}
+              {loadingCatalog && <p className="status-msg">Chargement des quêtes...</p>}
+              {errorCatalog && <p className="status-msg error-msg">{errorCatalog}</p>}
 
-              {!loading && !error && filteredQuests.length === 0 && (
+              {!loadingCatalog && !errorCatalog && filteredQuests.length === 0 && (
                 <div className="empty-state">
                   <p>Aucune quête ne correspond à vos filtres.</p>
                   <button
@@ -180,6 +298,7 @@ function App() {
                   <QuestCard
                     key={quest.id}
                     quest={quest}
+                    completion={completionsMap.get(quest.id)}
                     onSelect={(q) => setSelectedQuest(q)}
                   />
                 ))}
@@ -188,6 +307,19 @@ function App() {
           </>
         )}
       </main>
+
+      {/* Modal de validation d'une quête (Écran 4) */}
+      {validatingQuest && (
+        <QuestValidationModal
+          quest={validatingQuest}
+          isDemoMode={isDemoMode}
+          onSuccess={async (completion, photoBlob) => {
+            await saveCompletion(completion, photoBlob);
+            setValidatingQuest(null);
+          }}
+          onClose={() => setValidatingQuest(null)}
+        />
+      )}
 
       {/* Pied de page avec crédit OSM */}
       <footer className="app-footer">

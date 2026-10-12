@@ -1,0 +1,71 @@
+import React from 'react';
+
+interface WelcomeScreenProps {
+  onStart: () => void;
+  totalQuests: number;
+}
+
+export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart, totalQuests }) => {
+  return (
+    <div className="welcome-screen">
+      {/* Illustration Hero animée */}
+      <div className="welcome-hero-wrap">
+        <img
+          src={`${import.meta.env.BASE_URL}hero-landscape.svg`}
+          alt="Paysage corse entre mer et monts"
+          className="welcome-hero-img"
+        />
+        <div className="welcome-hero-badge">
+          <span>🌿 Exploration insulaire</span>
+        </div>
+      </div>
+
+      <div className="welcome-content">
+        <h2 className="welcome-heading">
+          Explorez la Corse à travers l’objectif
+        </h2>
+        <p className="welcome-lead">
+          <strong>Tracce</strong> est un rally photo géolocalisé qui vous emmène au cœur des trésors d’Ajaccio, Bastia, Corte et des sommets environnants.
+        </p>
+
+        {/* 3 Cartes illustratives de parcours */}
+        <div className="welcome-steps-grid">
+          <div className="welcome-step-card">
+            <div className="step-card-icon">🗺️</div>
+            <div className="step-card-info">
+              <h3>1. Choisissez un lieu</h3>
+              <p>Parcourez {totalQuests > 0 ? `${totalQuests} quêtes réelles` : 'les quêtes'} : citadelles génoises, places ombragées, cascades et sommets mythiques.</p>
+            </div>
+          </div>
+
+          <div className="welcome-step-card">
+            <div className="step-card-icon">📸</div>
+            <div className="step-card-info">
+              <h3>2. Prenez votre photo</h3>
+              <p>Rendez-vous sur place et immortalisez la quête avec votre appareil photo pour prouver votre exploration.</p>
+            </div>
+          </div>
+
+          <div className="welcome-step-card">
+            <div className="step-card-icon">📍</div>
+            <div className="step-card-info">
+              <h3>3. Validez par GPS</h3>
+              <p>Validez votre présence dans le rayon requis pour marquer des points et enrichir votre carnet de voyage.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Bouton d'entrée principal */}
+        <div className="welcome-action-area">
+          <button type="button" className="btn-start-exploration" onClick={onStart}>
+            <span>Découvrir les quêtes</span>
+            <span className="btn-arrow">→</span>
+          </button>
+          <p className="welcome-offline-hint">
+            ⚡ Fonctionne à 100 % hors ligne une fois chargé
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};

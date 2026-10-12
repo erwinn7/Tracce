@@ -157,3 +157,4 @@ Un parcours derrière un clic de connexion n'est pas indexable. Les pages suivan
 | D4 | Rayons conservés (sommet 100 m, site naturel 150 m, ville 100 m, colline 150 m). **Rejet** de toute mesure dont `accuracyM > 50 m`. **Mode démo** ajouté : réglage visible dans l'interface, validation marquée « démo », score séparé, réinitialisable en un clic. Permet de tester sans être en Corse. |
 | D5 | **12 quêtes vérifiées** à M1 (4 par ville, types variés). Extension à 20-25 après M6. |
 | D6 | Couleur thème `#2D4A3E` (vert montagne). Icône : empreinte de pas ou repère en SVG, version maskable avec zone de sécurité. |
+| D7 | Validation stricte (M2) : une quête est valide si et seulement si `accuracyM <= 50 m` ET `distanceToTargetM <= radiusM`. L'option « rayon + précision » de la section 5 est supprimée. Si `accuracyM > 50 m`, refus strict avec le message « Signal GPS trop imprécis, avance à découvert et réessaie » et bouton Réessayer. |

@@ -1,13 +1,44 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Quest } from '../types/quest';
 import { CITY_NAMES, TYPE_LABELS } from '../types/quest';
+import type { LocalCompletion, LocalPhoto } from '../lib/db';
+import { getPhoto } from '../lib/db';
 
 interface QuestDetailProps {
   quest: Quest;
+  completion?: LocalCompletion;
+  onStartValidation: () => void;
   onBack: () => void;
 }
 
-export const QuestDetail: React.FC<QuestDetailProps> = ({ quest, onBack }) => {
+export const QuestDetail: React.FC<QuestDetailProps> = ({
+  quest,
+  completion,
+  onStartValidation,
+  onBack,
+}) => {
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (completion?.photoId) {
+      getPhoto(completion.photoId).then((p: LocalPhoto | undefined) => {
+        if (active && p) {
+          const url = URL.createObjectURL(p.blob);
+          setPhotoDataUrl(url);
+        }
+      });
+    } else {
+      setPhotoDataUrl(null);
+    }
+    return () => {
+      active = false;
+      if (photoDataUrl) {
+        URL.revokeObjectURL(photoDataUrl);
+      }
+    };
+  }, [completion?.photoId]);
+
   return (
     <div className="quest-detail">
       <button type="button" className="btn-back" onClick={onBack}>
@@ -44,8 +75,10 @@ export const QuestDetail: React.FC<QuestDetailProps> = ({ quest, onBack }) => {
             <span className="quest-info-value">{quest.points} pts</span>
           </div>
           <div className="quest-info-item">
-            <span className="quest-info-label">Source</span>
-            <span className="quest-info-value uppercase">{quest.source}</span>
+            <span className="quest-info-label">Statut</span>
+            <span className="quest-info-value">
+              {completion ? (completion.isDemo ? '🧪 Démo' : '✅ Validée') : '⏳ À faire'}
+            </span>
           </div>
         </div>
 
@@ -54,14 +87,42 @@ export const QuestDetail: React.FC<QuestDetailProps> = ({ quest, onBack }) => {
           <p className="quest-description">{quest.description}</p>
         </section>
 
-        <section className="quest-action-section">
-          <button type="button" className="btn-primary-action" disabled title="Disponible au jalon M2">
-            📷 Valider ici (bientôt disponible)
-          </button>
-          <p className="quest-hint">
-            La validation photo et géolocalisation sera active au jalon M2.
-          </p>
-        </section>
+        {completion ? (
+          <section className="quest-completed-section">
+            <div className="completed-header">
+              <h3>Quête validée !</h3>
+              {completion.isDemo && <span className="demo-badge">Mode Démo</span>}
+            </div>
+            <p className="completed-date">
+              Explorée le {new Date(completion.completedAt).toLocaleDateString('fr-FR', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </p>
+
+            {photoDataUrl && (
+              <div className="completed-photo-wrap">
+                <img src={photoDataUrl} alt={`Photo prise à ${quest.name}`} className="completed-photo" />
+              </div>
+            )}
+          </section>
+        ) : (
+          <section className="quest-action-section">
+            <button
+              type="button"
+              className="btn-primary-action"
+              onClick={onStartValidation}
+            >
+              📷 Valider ici
+            </button>
+            <p className="quest-hint">
+              Prends une photo et vérifie ta position GPS pour remporter {quest.points} points.
+            </p>
+          </section>
+        )}
       </div>
     </div>
   );
