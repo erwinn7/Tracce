@@ -15,13 +15,14 @@ import { SyncIndicator } from './components/SyncIndicator';
 import { MobileDrawer } from './components/MobileDrawer';
 import { AuthModal } from './components/AuthModal';
 import { AdminAddPlace } from './components/AdminAddPlace';
+import { ProfileView } from './components/ProfileView';
 import { computeScore } from './utils/geo';
 import type { CityId, QuestType, Quest } from './types/quest';
 import { TYPE_LABELS } from './types/quest';
 import type { LocalCompletion } from './lib/db';
 import './App.css';
 
-type Screen = 'welcome' | 'quests' | 'admin';
+type Screen = 'welcome' | 'quests' | 'admin' | 'profile';
 
 function App() {
   const swRegistrationRef = useRef<ServiceWorkerRegistration | undefined>(undefined);
@@ -212,6 +213,16 @@ function App() {
             >
               Quêtes
             </button>
+            <button
+              type="button"
+              className={`desktop-nav-link ${currentScreen === 'profile' ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedQuest(null);
+                setCurrentScreen('profile');
+              }}
+            >
+              📍 Profil & Carte
+            </button>
             {authUser?.isAdmin && (
               <button
                 type="button"
@@ -237,8 +248,15 @@ function App() {
           <button
             type="button"
             className={`btn-user-pill ${authUser?.isAdmin ? 'btn-user-admin' : ''}`}
-            onClick={() => setIsAuthModalOpen(true)}
-            title={authUser ? `Connecté: ${authUser.username}` : 'Se connecter'}
+            onClick={() => {
+              if (authUser) {
+                setSelectedQuest(null);
+                setCurrentScreen('profile');
+              } else {
+                setIsAuthModalOpen(true);
+              }
+            }}
+            title={authUser ? `Voir profil de ${authUser.username}` : 'Se connecter'}
           >
             {authUser ? (authUser.isAdmin ? '👑 Erwinn' : `👤 ${authUser.username}`) : '🔑 Connexion'}
           </button>
@@ -289,7 +307,20 @@ function App() {
 
       {/* Contenu principal */}
       <main className="app-main">
-        {currentScreen === 'welcome' ? (
+        {currentScreen === 'profile' ? (
+          <ProfileView
+            user={authUser}
+            completions={completions}
+            catalog={catalog}
+            onBack={() => setCurrentScreen('quests')}
+            onNavigateToQuests={() => {
+              setSelectedQuest(null);
+              setCurrentScreen('quests');
+            }}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
+            onLogout={authLogout}
+          />
+        ) : currentScreen === 'welcome' ? (
           <WelcomeScreen
             onStart={() => setCurrentScreen('quests')}
             totalQuests={catalog?.quests.length ?? 0}

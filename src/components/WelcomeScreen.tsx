@@ -15,13 +15,6 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart, totalQues
           alt="Paysage corse entre mer et monts"
           className="welcome-hero-img"
         />
-        <div className="welcome-brand-overlay">
-          <img
-            src={`${import.meta.env.BASE_URL}icons/logo.png`}
-            alt="Logo officiel Tracce"
-            className="welcome-brand-logo"
-          />
-        </div>
         <div className="welcome-hero-badge">
           <span>🌿 Exploration insulaire</span>
         </div>

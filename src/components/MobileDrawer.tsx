@@ -4,8 +4,8 @@ import type { AuthUser } from '../hooks/useAuth';
 interface MobileDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  currentScreen: 'welcome' | 'quests' | 'admin';
-  onNavigate: (screen: 'welcome' | 'quests' | 'admin') => void;
+  currentScreen: 'welcome' | 'quests' | 'admin' | 'profile';
+  onNavigate: (screen: 'welcome' | 'quests' | 'admin' | 'profile') => void;
   currentUser: AuthUser | null;
   onOpenAuth: () => void;
   onLogout: () => void;
@@ -56,6 +56,17 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             }}
           >
             🗺️ Catalogue des Quêtes
+          </button>
+
+          <button
+            type="button"
+            className={`drawer-link ${currentScreen === 'profile' ? 'drawer-link-active' : ''}`}
+            onClick={() => {
+              onNavigate('profile');
+              onClose();
+            }}
+          >
+            📍 Mon Profil & Carte
           </button>
 
           {currentUser?.isAdmin && (
