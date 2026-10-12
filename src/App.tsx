@@ -35,23 +35,37 @@ function App() {
     onRegistered(registration) {
       swRegistrationRef.current = registration;
       console.log('[SW] Enregistré :', registration);
+      if (registration) {
+        if (registration.waiting) {
+          setNeedRefresh(true);
+        }
+        registration.update().catch((err) => {
+          console.warn('[SW] Erreur vérification initiale MAJ:', err);
+        });
+      }
     },
     onRegisterError(error) {
       console.error('[SW] Erreur :', error);
     },
   });
 
-  // Vérification périodique SW
+  // Vérification proactive et périodique SW
   useEffect(() => {
     const checkUpdate = () => {
       if (swRegistrationRef.current) {
+        if (swRegistrationRef.current.waiting) {
+          setNeedRefresh(true);
+        }
         swRegistrationRef.current.update().catch((err) => {
           console.warn('[SW] Erreur vérification MAJ:', err);
         });
       }
     };
 
-    const intervalId = window.setInterval(checkUpdate, 60 * 60 * 1000);
+    // Vérifier immédiatement dès l'ouverture
+    checkUpdate();
+
+    const intervalId = window.setInterval(checkUpdate, 15 * 60 * 1000);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -59,13 +73,34 @@ function App() {
       }
     };
 
+    const handleFocus = () => {
+      checkUpdate();
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
     };
-  }, []);
+  }, [setNeedRefresh]);
+
+  const handleForceUpdateApp = useCallback(async () => {
+    if (swRegistrationRef.current) {
+      try {
+        await swRegistrationRef.current.update();
+        if (swRegistrationRef.current.waiting) {
+          await updateServiceWorker(true);
+          return;
+        }
+      } catch (err) {
+        console.warn('[SW] Force update err:', err);
+      }
+    }
+    window.location.reload();
+  }, [updateServiceWorker]);
 
   const { catalog, loading: loadingCatalog, error: errorCatalog, addCustomQuest, syncLocalQuests } = useCatalog();
   const { canShowPrompt, isIos, installApp, dismissInstall } = useInstallPrompt();
@@ -436,6 +471,7 @@ function App() {
         currentUser={authUser}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         onLogout={authLogout}
+        onForceUpdate={handleForceUpdateApp}
       />
 
       {/* Modal d'authentification */}

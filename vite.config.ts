@@ -15,7 +15,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       scope: '/',
-      includeAssets: ['favicon.svg', 'hero-landscape.svg', 'data/quests.json', 'icons/logo.png'],
+      includeAssets: ['favicon.svg', 'hero-landscape.svg', 'data/quests.json', 'icons/logo.png', 'media/img-home.jpeg'],
       manifest: {
         name: 'Tracce',
         short_name: 'Tracce',
@@ -47,7 +47,8 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2,json}'],
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+        globPatterns: ['**/*.{js,css,html,svg,png,jpg,jpeg,webp,woff2,json}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/__/, /^\/lieux\//, /^\/villes\//, /^\/robots\.txt/, /^\/sitemap\.xml/, /^\/llms\.txt/], // Évite d'intercepter les URL Firebase et SEO statiques
         runtimeCaching: [

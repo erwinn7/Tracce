@@ -9,6 +9,7 @@ interface MobileDrawerProps {
   currentUser: AuthUser | null;
   onOpenAuth: () => void;
   onLogout: () => void;
+  onForceUpdate?: () => void;
 }
 
 export const MobileDrawer: React.FC<MobileDrawerProps> = ({
@@ -19,6 +20,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   currentUser,
   onOpenAuth,
   onLogout,
+  onForceUpdate,
 }) => {
   if (!isOpen) return null;
 
@@ -84,6 +86,35 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
         </nav>
 
         <div className="drawer-footer">
+          {onForceUpdate && (
+            <button
+              type="button"
+              className="btn-drawer-update"
+              onClick={() => {
+                onClose();
+                onForceUpdate();
+              }}
+              style={{
+                width: '100%',
+                marginBottom: '10px',
+                padding: '9px 12px',
+                backgroundColor: '#f8fafc',
+                color: '#2D4A3E',
+                border: '1px solid #cbd5e1',
+                borderRadius: '8px',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+              }}
+            >
+              🔄 Recharger la dernière version
+            </button>
+          )}
+
           {currentUser ? (
             <div className="drawer-user-box">
               <div className="drawer-user-info">
