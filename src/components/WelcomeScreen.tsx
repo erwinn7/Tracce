@@ -8,11 +8,11 @@ interface WelcomeScreenProps {
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart, totalQuests }) => {
   return (
     <div className="welcome-screen">
-      {/* Illustration Hero animée avec logo officiel */}
+      {/* Illustration Hero avec l'image officielle d'accueil */}
       <div className="welcome-hero-wrap">
         <img
-          src={`${import.meta.env.BASE_URL}hero-landscape.svg`}
-          alt="Paysage corse entre mer et monts"
+          src={`${import.meta.env.BASE_URL}media/img-home.jpeg`}
+          alt="Explorateur photographe dans les montagnes de Corse"
           className="welcome-hero-img"
         />
         <div className="welcome-hero-badge">
