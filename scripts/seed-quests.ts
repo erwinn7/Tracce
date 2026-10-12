@@ -27,10 +27,6 @@ async function seedQuests() {
     const questRef = doc(db, 'quests', quest.id);
     await setDoc(questRef, quest, { merge: true });
 
-    // Également dans 'custom_quests' au cas où
-    const customRef = doc(db, 'custom_quests', quest.id);
-    await setDoc(customRef, quest, { merge: true });
-
     console.log(`  ✅ Quête synchronisée : ${quest.name} (${quest.id})`);
   }
 

@@ -9,7 +9,7 @@ export function useCatalog() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Charger le catalogue en fusionnant les quêtes de base et les quêtes personnalisées
+  // Charger le catalogue en fusionnant les quêtes de base et les quêtes stockées localement
   const loadData = useCallback(async () => {
     try {
       const res = await fetch(`${import.meta.env.BASE_URL}data/quests.json`);
@@ -17,19 +17,20 @@ export function useCatalog() {
         throw new Error(`Erreur HTTP: ${res.status}`);
       }
       const data: Catalog = await res.json();
-      const custom = await getAllCustomQuests();
+      const localQuests = await getAllCustomQuests();
 
-      // Fusion des quêtes de base et des quêtes ajoutées par l'admin
-      const combinedQuests: Quest[] = [...data.quests];
-      for (const cq of custom) {
-        if (!combinedQuests.some((q) => q.id === cq.id)) {
-          combinedQuests.push(cq);
-        }
+      // Fusion unique par identifiant (id)
+      const questsMap = new Map<string, Quest>();
+      for (const q of data.quests) {
+        questsMap.set(q.id, q);
+      }
+      for (const lq of localQuests) {
+        questsMap.set(lq.id, lq);
       }
 
       setCatalog({
         version: data.version,
-        quests: combinedQuests,
+        quests: Array.from(questsMap.values()),
       });
       setLoading(false);
     } catch (err: any) {
@@ -39,29 +40,28 @@ export function useCatalog() {
     }
   }, []);
 
-  // Écoute en temps réel de Firestore pour synchroniser les nouveaux lieux entre tous les téléphones
+  // Écoute en temps réel de l'unique collection Firestore 'quests'
   useEffect(() => {
     loadData();
 
     if (!db || !isFirebaseConfigured) return;
 
-    // 1. Synchroniser en arrière-plan les quêtes locales vers Firestore si besoin
+    // 1. Sauvegarder dans Firestore les éventuelles quêtes locales non encore présentes
     getAllCustomQuests().then(async (localQuests) => {
       if (localQuests.length > 0 && db) {
         for (const lq of localQuests) {
           try {
             await setDoc(doc(db, 'quests', lq.id), lq, { merge: true });
-            await setDoc(doc(db, 'custom_quests', lq.id), lq, { merge: true });
           } catch (e) {
-            console.warn('[Catalog] Sauvegarde différée quête locale vers Firestore:', e);
+            console.warn('[Catalog] Sauvegarde différée quête vers Firestore:', e);
           }
         }
       }
     });
 
-    // 2. Écouter les quêtes depuis la collection 'quests' de Firestore
+    // 2. Écouter la collection unique 'quests' en temps réel
     const questsCol = collection(db, 'quests');
-    const unsubscribeQuests = onSnapshot(
+    const unsubscribe = onSnapshot(
       questsCol,
       async (snapshot) => {
         let hasChanges = false;
@@ -79,43 +79,19 @@ export function useCatalog() {
       }
     );
 
-    // 3. Écouter également 'custom_quests'
-    const customQuestsCol = collection(db, 'custom_quests');
-    const unsubscribeCustom = onSnapshot(
-      customQuestsCol,
-      async (snapshot) => {
-        let hasChanges = false;
-        for (const docSnap of snapshot.docs) {
-          const questData = docSnap.data() as Quest;
-          await dbSaveCustomQuest(questData);
-          hasChanges = true;
-        }
-        if (hasChanges) {
-          await loadData();
-        }
-      },
-      (err) => {
-        console.warn('[Catalog] Écoute Firestore custom_quests:', err);
-      }
-    );
-
-    return () => {
-      unsubscribeQuests();
-      unsubscribeCustom();
-    };
+    return () => unsubscribe();
   }, [loadData]);
 
-  // Ajouter un lieu (sauvegardé en local ET dans Firestore Firebase)
+  // Ajouter un lieu : sauvegardé dans la collection unique 'quests'
   const addCustomQuest = async (newQuest: Quest) => {
     // 1. Sauvegarde locale immédiate (IndexedDB)
     await dbSaveCustomQuest(newQuest);
 
-    // 2. Sauvegarde dans le cloud Firestore pour que tous les utilisateurs voient le lieu
+    // 2. Sauvegarde dans l'unique collection 'quests' de Firestore
     if (db && isFirebaseConfigured) {
       try {
         await setDoc(doc(db, 'quests', newQuest.id), newQuest, { merge: true });
-        await setDoc(doc(db, 'custom_quests', newQuest.id), newQuest, { merge: true });
-        console.log('[Catalog] Nouveau lieu synchronisé sur Firebase Firestore avec succès:', newQuest.id);
+        console.log('[Catalog] Nouveau lieu ajouté dans Firestore (quests):', newQuest.id);
       } catch (err) {
         console.error('[Catalog] Erreur sauvegarde Firestore lieu:', err);
       }

@@ -3,13 +3,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Quêtes du catalogue (les 12 quêtes initiales + ajouts admin)
+    // Unique collection des quêtes (12 quêtes initiales + ajouts admin)
+    // Lecture publique pour tous les joueurs, écriture pour les ajouts
     match /quests/{questId} {
-      allow read, write: if true;
-    }
-
-    // Quêtes personnalisées (compatibilité)
-    match /custom_quests/{questId} {
       allow read, write: if true;
     }
 
