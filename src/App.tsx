@@ -1,21 +1,25 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useCatalog } from './hooks/useCatalog';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import { CitySelector } from './components/CitySelector';
 import { QuestCard } from './components/QuestCard';
 import { QuestDetail } from './components/QuestDetail';
+import { FloatingBanner } from './components/FloatingBanner';
 import type { CityId, QuestType, Quest } from './types/quest';
 import { TYPE_LABELS } from './types/quest';
 import './App.css';
 
 function App() {
+  const swRegistrationRef = useRef<ServiceWorkerRegistration | undefined>(undefined);
+
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     offlineReady: [offlineReady, setOfflineReady],
     updateServiceWorker,
   } = useRegisterSW({
     onRegistered(registration) {
+      swRegistrationRef.current = registration;
       console.log('[SW] Enregistré :', registration);
     },
     onRegisterError(error) {
@@ -23,8 +27,34 @@ function App() {
     },
   });
 
+  // Vérification périodique (toutes les heures) et sur visibilitychange
+  useEffect(() => {
+    const checkUpdate = () => {
+      if (swRegistrationRef.current) {
+        swRegistrationRef.current.update().catch((err) => {
+          console.warn('[SW] Erreur lors de la vérification de mise à jour:', err);
+        });
+      }
+    };
+
+    const intervalId = window.setInterval(checkUpdate, 60 * 60 * 1000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkUpdate();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   const { catalog, loading, error } = useCatalog();
-  const { isInstallable, installApp } = useInstallPrompt();
+  const { canShowPrompt, isIos, installApp, dismissInstall } = useInstallPrompt();
 
   // Navigation & filtres
   const [selectedCity, setSelectedCity] = useState<CityId | 'all'>('all');
@@ -40,10 +70,16 @@ function App() {
     });
   }, [catalog, selectedCity, selectedType]);
 
-  const closeToast = () => {
+  const closeOfflineToast = () => {
     setOfflineReady(false);
+  };
+
+  const handleDismissUpdate = () => {
     setNeedRefresh(false);
   };
+
+  // Priorité : Mise à jour d'abord, Installation ensuite. Une seule bannière à la fois.
+  const activeBannerType = needRefresh ? 'update' : canShowPrompt ? 'install' : null;
 
   const typesList: { id: QuestType | 'all'; label: string }[] = [
     { id: 'all', label: 'Tous types' },
@@ -54,7 +90,25 @@ function App() {
   ];
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${activeBannerType ? 'has-floating-banner' : ''}`}>
+      {/* Bannière flottante en haut de l'écran */}
+      {activeBannerType === 'update' && (
+        <FloatingBanner
+          type="update"
+          onAction={() => void updateServiceWorker(true)}
+          onDismiss={handleDismissUpdate}
+        />
+      )}
+
+      {activeBannerType === 'install' && (
+        <FloatingBanner
+          type="install"
+          isIos={isIos}
+          onAction={installApp}
+          onDismiss={dismissInstall}
+        />
+      )}
+
       {/* En-tête */}
       <header className="app-header">
         <div className="header-brand" onClick={() => setSelectedQuest(null)} role="button" tabIndex={0}>
@@ -64,12 +118,6 @@ function App() {
             <p className="app-subtitle">Rally photo géolocalisé en Corse</p>
           </div>
         </div>
-
-        {isInstallable && (
-          <button type="button" className="btn-install" onClick={installApp}>
-            📥 Installer l'app
-          </button>
-        )}
       </header>
 
       {/* Contenu principal */}
@@ -155,27 +203,11 @@ function App() {
         </p>
       </footer>
 
-      {/* Toasts et bannières PWA */}
+      {/* Toast d'état hors ligne */}
       {offlineReady && (
         <div className="toast" role="alert">
           <p>Application prête pour une utilisation hors ligne.</p>
-          <button type="button" onClick={closeToast}>Fermer</button>
-        </div>
-      )}
-
-      {needRefresh && (
-        <div className="update-banner" role="alert">
-          <p>Nouvelle version disponible</p>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => void updateServiceWorker(true)}
-          >
-            Recharger
-          </button>
-          <button type="button" className="btn-secondary" onClick={closeToast}>
-            Ignorer
-          </button>
+          <button type="button" onClick={closeOfflineToast}>Fermer</button>
         </div>
       )}
     </div>

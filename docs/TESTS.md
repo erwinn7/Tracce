@@ -32,4 +32,8 @@
 | 4 | Filtre par type (Ville, Colline, Sommet, Site Naturel) | Chrome Desktop | ✅ Réussi | Filtrage et badges de types fonctionnels |
 | 5 | Écran de détail d'une quête | Chrome Desktop | ✅ Réussi | Affiche description, altitude, rayon, points et retour |
 | 6 | Crédit OSM visible | Chrome Desktop | ✅ Réussi | Mention « © contributeurs OpenStreetMap » en pied de page |
-| 7 | Bouton d'installation PWA | Navigateur supporté | ✅ Réussi | Déclenché via événement `beforeinstallprompt` |
+| 7 | Bannière d'installation PWA | Navigateur supporté | ✅ Réussi | Déclenché via `beforeinstallprompt`, masqué si standalone ou `appinstalled` |
+| 8 | Instruction d'installation iOS | Safari iOS | ✅ Réussi | Affiche « Appuie sur Partager puis Sur l’écran d’accueil » |
+| 9 | Mémorisation de fermeture (7 jours) | Chrome / Safari | ✅ Réussi | Fermeture stockée dans `localStorage`, réapparition bloquée 7 jours |
+| 10 | Bannière de mise à jour flottante | Chrome Desktop | ✅ Réussi | Prioritaire sur l'installation, recharge via `updateServiceWorker(true)` |
+| 11 | Vérification périodique MAJ | Navigateur | ✅ Réussi | Exécuté toutes les heures et au retour au premier plan (`visibilitychange`) |

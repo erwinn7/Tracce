@@ -112,9 +112,13 @@ type Catalog = {
 ### 5.1 Cycle de mise à jour
 
 - **Stratégie** : mise à jour proposée à l'utilisateur (`registerType: 'prompt'`).
-- **Raison** : éviter une interruption pendant une validation de quête en cours.
-- **Mécanisme** : le SW détecte une nouvelle version → événement `waiting` → bannière « Nouvelle version disponible » + bouton « Recharger » → `skipWaiting()` + `clients.claim()` + rechargement.
-- **Versionnage** : le hash des fichiers dans le précache Workbox sert de version implicite.
+- **Raison** : éviter une interruption intempestive pendant une quête ou une prise de photo.
+- **Détection & Fréquence** :
+  - Détection automatique au premier chargement via le Service Worker Workbox (`onNeedRefresh`).
+  - Détection proactive : appel explicite à `registration.update()` toutes les heures via `setInterval`, et à chaque retour de l'application au premier plan via l'événement `visibilitychange` (`document.visibilityState === 'visible'`).
+- **Composant UI** : bannière flottante en haut de l'écran (`FloatingBanner`, `role="status"`, `aria-live="polite"`). Priorité absolue sur la bannière d'installation.
+- **Action** : bouton « Mettre à jour » déclenchant `updateServiceWorker(true)` (`skipWaiting()` + rechargement immédiat) ou bouton « Plus tard ».
+- **Versionnage** : les révisions de hash générées par Workbox dans `sw.js` identifient les nouvelles versions.
 
 ## 6. Données et synchronisation
 
@@ -202,7 +206,9 @@ Aucune notification en v1 de base (justification : le rally est une activité po
 
 | Fonctionnalité | Android (Chrome) | iOS (Safari) |
 |----------------|------------------|--------------|
-| Installation PWA | ✅ | ✅ (iOS 16.4+, Add to Home Screen) |
+| Installation PWA | ✅ Événement `beforeinstallprompt` + `prompt()` | ⚠️ Pas d'événement standard. Détection User-Agent + guidage manuel (« Partager » > « Sur l'écran d'accueil ») |
+| Détection standalone | ✅ `(display-mode: standalone)` | ✅ `(display-mode: standalone)` ou `navigator.standalone` |
+| Mémorisation refus | ✅ 7 jours (`localStorage`) | ✅ 7 jours (`localStorage`) |
 | Service Worker | ✅ | ✅ |
 | Background Sync | ✅ | ❌ (repli : `online` event + ouverture app) |
 | Push notifications | ✅ | ✅ (iOS 16.4+, app installée sur écran d'accueil) |
