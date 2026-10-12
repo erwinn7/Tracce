@@ -93,11 +93,13 @@ function generateHtmlShell(title: string, description: string, canonicalUrl: str
   <title>${title}</title>
   <meta name="description" content="${description}">
   <link rel="canonical" href="${canonicalUrl}">
+  <link rel="alternate" type="text/markdown" href="/tracce.md">
   <meta property="og:title" content="${title}">
   <meta property="og:description" content="${description}">
   <meta property="og:url" content="${canonicalUrl}">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="fr_FR">
+  <meta property="og:image" content="${SITE_URL}/icons/logo-512.png">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -246,12 +248,32 @@ async function buildSeo() {
   };
 
   const homeContent = `
-    <h1>Tracce — Rally Photo Géolocalisé en Corse</h1>
+    <h1>Tracce — Rally photo géolocalisé en Corse</h1>
     <p><strong>Tracce</strong> est une Progressive Web App dédiée à la découverte du patrimoine naturel et historique de la Corse. À travers 12 quêtes vérifiées réparties sur Ajaccio, Bastia et Corte, explorez citadelles génoises, lacs d'altitude et sommets emblématiques, validez votre présence par GPS et immortalisez chaque étape en photo.</p>
 
+    <div class="card" style="margin: 1.5rem 0;">
+      <h2 style="margin-top:0; color:var(--color-primary);">🌿 Exploration insulaire : Explorez la Corse à travers l’objectif</h2>
+      <p>Tracce est un rally photo géolocalisé qui vous emmène au cœur des trésors d’Ajaccio, Bastia, Corte et des sommets environnants.</p>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
+        <div style="border-left: 3px solid #2D4A3E; padding-left: 0.8rem;">
+          <h3 style="margin: 0 0 0.3rem; font-size: 1.05rem;">🗺️ 1. Choisissez un lieu</h3>
+          <p style="margin: 0; font-size: 0.95rem; color: #5A6660;">Parcourez 12 quêtes réelles : citadelles génoises, places ombragées, cascades et sommets mythiques.</p>
+        </div>
+        <div style="border-left: 3px solid #2D4A3E; padding-left: 0.8rem;">
+          <h3 style="margin: 0 0 0.3rem; font-size: 1.05rem;">📸 2. Prenez votre photo</h3>
+          <p style="margin: 0; font-size: 0.95rem; color: #5A6660;">Rendez-vous sur place et immortalisez la quête avec votre appareil photo pour prouver votre exploration.</p>
+        </div>
+        <div style="border-left: 3px solid #2D4A3E; padding-left: 0.8rem;">
+          <h3 style="margin: 0 0 0.3rem; font-size: 1.05rem;">📍 3. Validez par GPS</h3>
+          <p style="margin: 0; font-size: 0.95rem; color: #5A6660;">Validez votre présence dans le rayon requis pour marquer des points et enrichir votre carnet de voyage.</p>
+        </div>
+      </div>
+      <p style="font-size:0.9rem; color:#5A6660; margin-top:1rem;">⚡ <strong>Fonctionne à 100 % hors ligne</strong> une fois chargé. Application prête pour une utilisation hors ligne en zone blanche.</p>
+    </div>
+
     <div class="card" style="text-align: center;">
-      <h2 style="margin-top:0;">Découvrez l'expérience Tracce en vidéo</h2>
-      <p style="color: var(--color-text-muted); margin-bottom: 1rem;">Un aperçu en immersion du rallye photo et des panoramas insulaires.</p>
+      <h2 style="margin-top:0;">🎬 EN IMMERSION : Découvrez l'aventure en vidéo</h2>
+      <p style="color: var(--color-text-muted); margin-bottom: 1rem;">Des ruelles génoises aux aiguilles rocheuses, suivez la trace et capturez chaque étape.</p>
       <video controls playsinline preload="metadata" poster="/icons/logo-512.png" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
         <source src="/media/tracce-teaser.mp4" type="video/mp4" />
         Votre navigateur ne prend pas en charge la lecture de vidéos.
@@ -268,7 +290,7 @@ async function buildSeo() {
     </div>
 
     <div class="card">
-      <h2>Toutes les Quêtes du Catalogue</h2>
+      <h2>Toutes les Quêtes du Catalogue (12 quêtes vérifiées)</h2>
       <table>
         <thead>
           <tr>
@@ -299,7 +321,7 @@ async function buildSeo() {
       <h2>Questions fréquentes (FAQ)</h2>
       <div class="faq-item">
         <div class="faq-q">Comment fonctionne la validation d'une quête dans Tracce ?</div>
-        <div class="faq-a">Rendez-vous à proximité du lieu (rayon de 100 à 150 mètres), prenez une photo via l'appareil photo de votre smartphone, puis confirmez la géolocalisation GPS haute précision.</div>
+        <div class="faq-a">Rendez-vous à proximité du lieu (rayon de 50 à 150 mètres), prenez une photo via l'appareil photo de votre smartphone, puis confirmez la géolocalisation GPS haute précision.</div>
       </div>
       <div class="faq-item">
         <div class="faq-q">L'application fonctionne-t-elle sans connexion Internet ?</div>
@@ -312,13 +334,19 @@ async function buildSeo() {
     </div>
   `;
 
-  // 1. Enrichir dist/index.html (généré par Vite pour la PWA) avec les balises SEO et noscript
+  // 1. Enrichir dist/index.html (généré par Vite pour la PWA) avec les balises SEO et le contenu pré-rendu visible dans #root
   const indexPath = path.join(DIST_DIR, 'index.html');
   if (fs.existsSync(indexPath)) {
     let spaHtml = fs.readFileSync(indexPath, 'utf-8');
+
+    // S'assurer que le titre complet est présent
+    spaHtml = spaHtml.replace(/<title>.*?<\/title>/, '<title>Tracce — Rally photo géolocalisé en Corse</title>');
+
+    // Balises SEO et lien vers jumelle Markdown dans le <head>
     const seoHeadTags = `
     <link rel="canonical" href="${SITE_URL}/">
-    <meta property="og:title" content="Tracce — Rally Photo Géolocalisé en Corse">
+    <link rel="alternate" type="text/markdown" href="/tracce.md">
+    <meta property="og:title" content="Tracce — Rally photo géolocalisé en Corse">
     <meta property="og:description" content="Explorez Ajaccio, Bastia, Corte et les sommets de Corse à travers un rally photo géolocalisé.">
     <meta property="og:url" content="${SITE_URL}/">
     <meta property="og:type" content="website">
@@ -326,25 +354,79 @@ async function buildSeo() {
     <script type="application/ld+json">
       ${JSON.stringify(homeStructuredData, null, 2)}
     </script>`;
-    spaHtml = spaHtml.replace('</head>', `${seoHeadTags}\n  </head>`);
 
-    const noscriptBlock = `
+    if (!spaHtml.includes('application/ld+json')) {
+      spaHtml = spaHtml.replace('</head>', `${seoHeadTags}\n  </head>`);
+    }
+
+    // Injection du contenu pré-rendu DIRECTEMENT dans <div id="root">
+    // De cette manière, les robots (crawlers sans JS, GPTBot, ClaudeBot, Googlebot sans JS)
+    // voient 100% du contenu textuel, le <h1>, le nom Tracce et les quêtes.
+    // Dès que React démarre, createRoot remplace le contenu de #root par l'application interactive.
+    const prerenderedRoot = `<div id="root">
+      <div class="prerender-seo-shell" style="max-width:820px;margin:0 auto;padding:2rem 1.5rem;font-family:'Newsreader','Lora',Georgia,serif;color:#1A201C;line-height:1.6;">
+        ${homeContent}
+      </div>
+    </div>
     <noscript>
-      <div style="max-width:800px;margin:2rem auto;padding:1rem;font-family:sans-serif;background:#fff;border-radius:8px;">
+      <div style="max-width:820px;margin:2rem auto;padding:1rem;background:#fff;border-radius:12px;border:1px solid #E2E8E5;">
         ${homeContent}
       </div>
     </noscript>`;
-    spaHtml = spaHtml.replace('</body>', `${noscriptBlock}\n  </body>`);
+
+    spaHtml = spaHtml.replace(/<div id="root"><\/div>/, prerenderedRoot);
 
     fs.writeFileSync(indexPath, spaHtml);
-    console.log('✅ dist/index.html PWA enrichi avec JSON-LD et fallback noscript SEO');
+    console.log('✅ dist/index.html PWA pré-rendu avec succès (contenu visible sans JavaScript dans #root et balises SEO)');
   }
 
   // Également générer presentation.html pour consultation statique pure
   fs.writeFileSync(
     path.join(DIST_DIR, 'presentation.html'),
-    generateHtmlShell('Tracce — Rally Photo Géolocalisé en Corse', 'Explorez Ajaccio, Bastia, Corte et les sommets de Corse à travers un rally photo géolocalisé.', `${SITE_URL}/`, homeStructuredData, homeContent)
+    generateHtmlShell('Tracce — Rally photo géolocalisé en Corse', 'Explorez Ajaccio, Bastia, Corte et les sommets de Corse à travers un rally photo géolocalisé.', `${SITE_URL}/`, homeStructuredData, homeContent)
   );
+
+  // 1bis. Jumelle Markdown (tracce.md)
+  const tracceMd = `# Tracce — Rally photo géolocalisé en Corse
+
+> Tracce est une application web progressive (PWA) de rally photo géolocalisé invitant à explorer le patrimoine naturel et historique de Corse à travers Ajaccio, Bastia et Corte. Pour valider une quête et remporter des points, l'utilisateur doit se rendre physiquement sur le lieu, immortaliser l'étape avec son appareil photo et prouver sa présence via la géolocalisation GPS. Conçue pour le terrain et les zones blanches, l'application fonctionne à 100 % hors ligne avec persistance locale (IndexedDB) et synchronisation automatique vers Firebase au retour du réseau.
+
+## Exploration insulaire : Explorez la Corse à travers l’objectif
+
+Tracce est un rally photo géolocalisé qui vous emmène au cœur des trésors d’Ajaccio, Bastia, Corte et des sommets environnants.
+
+### 1. Choisissez un lieu
+Parcourez 12 quêtes réelles : citadelles génoises, places ombragées, cascades et sommets mythiques.
+
+### 2. Prenez votre photo
+Rendez-vous sur place et immortalisez la quête avec votre appareil photo pour prouver votre exploration.
+
+### 3. Validez par GPS
+Validez votre présence dans le rayon requis pour marquer des points et enrichir votre carnet de voyage.
+
+## Territoires d'exploration
+
+- [Ajaccio](${SITE_URL}/villes/ajaccio) : Du golfe impérial jusqu'au sommet panoramique du Mont Gozzi et la pointe de la Parata.
+- [Bastia](${SITE_URL}/villes/bastia) : Des ruelles de Terra Nova à la lagune de Biguglia et la Serra di Pigno.
+- [Corte](${SITE_URL}/villes/corte) : De la citadelle de Pascal Paoli aux crêtes alpines du Monte Rotondo.
+
+## Quêtes du catalogue (12 quêtes vérifiées)
+
+${catalog.quests.map((q) => `- [${q.name}](${SITE_URL}/lieux/${q.id}) (${CITY_DETAILS[q.cityId]?.name || q.cityId}) : Type ${q.type}, ${q.points} points, rayon de validation ${q.radiusM} m.`).join('\n')}
+
+## Foire Aux Questions (FAQ)
+
+### Comment fonctionne la validation d'une quête dans Tracce ?
+Rendez-vous à proximité du lieu (rayon de 50 à 150 mètres), prenez une photo via l'appareil photo de votre smartphone, puis confirmez la géolocalisation GPS haute précision.
+
+### L'application fonctionne-t-elle sans connexion Internet ?
+Oui, Tracce est une PWA entièrement installable pré-chargeant l'ensemble du catalogue et des pages. Vos validations et photos sont stockées localement et synchronisées automatiquement dès le retour du réseau.
+
+### Le service est-il gratuit ?
+Tracce est un projet éducatif libre et gratuit s'appuyant sur les données ouvertes collaboratives d'OpenStreetMap.
+`;
+  fs.writeFileSync(path.join(DIST_DIR, 'tracce.md'), tracceMd);
+  console.log('✅ Jumelle Markdown tracce.md générée dans dist/tracce.md');
 
   // 2. Pages des villes /villes/{cityId}.html et dossiers
   const villesDir = path.join(DIST_DIR, 'villes');
@@ -399,9 +481,9 @@ async function buildSeo() {
                 (q) => `<tr>
                 <td><strong>${q.name}</strong></td>
                 <td><span class="badge">${q.type}</span></td>
-                <td>${q.altitudeM ? `${q.altitudeM} m` : '—'}</td>
+                <td>${q.altitudeM ? `${q.altitudeM} m` : 'Niveau de la mer'}</td>
                 <td>+${q.points} pts</td>
-                <td><a href="/lieux/${q.id}">Consulter</a></td>
+                <td><a href="/lieux/${q.id}">Voir la fiche</a></td>
               </tr>`
               )
               .join('')}
@@ -410,7 +492,7 @@ async function buildSeo() {
       </div>
 
       <div class="card">
-        <h2>FAQ — Découvrir ${info.name} avec Tracce</h2>
+        <h2>Foire Aux Questions : ${info.name}</h2>
         ${info.faqs
           .map(
             (f) => `<div class="faq-item">
@@ -423,43 +505,28 @@ async function buildSeo() {
     `;
 
     const cityHtml = generateHtmlShell(
-      `Quêtes photo à ${info.name} — Tracce Corse`,
-      `Découvrez les quêtes géolocalisées à ${info.name} : citadelles, sentiers et sommets.`,
+      `Quêtes à ${info.name} — Tracce Corse`,
+      `${info.intro} Découvrez les ${cityQuests.length} quêtes Tracce disponibles à ${info.name}.`,
       cityUrl,
       cityStructuredData,
       cityContent
     );
 
-    // Écrit à la fois /villes/ajaccio.html et /villes/ajaccio/index.html pour éviter tout 404
+    // Écrit à la fois /villes/nom.html et /villes/nom/index.html pour garantir 0 erreur 404
     fs.writeFileSync(path.join(villesDir, `${cityId}.html`), cityHtml);
     const citySubDir = path.join(villesDir, cityId);
     fs.mkdirSync(citySubDir, { recursive: true });
     fs.writeFileSync(path.join(citySubDir, 'index.html'), cityHtml);
   }
-  console.log('✅ Pages villes statiques générées dans dist/villes/');
+  console.log('✅ Pages villes statiques générées dans dist/villes/ (fichiers .html et dossiers /index.html)');
 
-  // 3. Pages de lieux /lieux/{questId}.html
+  // 3. Pages des lieux /lieux/{id}.html et dossiers
   const lieuxDir = path.join(DIST_DIR, 'lieux');
   fs.mkdirSync(lieuxDir, { recursive: true });
 
   for (const quest of catalog.quests) {
-    const questUrl = `${SITE_URL}/lieux/${quest.id}`;
     const cityName = CITY_DETAILS[quest.cityId]?.name || quest.cityId;
-
-    const questFaqs = [
-      {
-        q: `Quel est le rayon de validation GPS pour ${quest.name} ?`,
-        a: `Le rayon de validation pour ${quest.name} est de ${quest.radiusM} mètres autour des coordonnées ${quest.lat}, ${quest.lng} avec une précision GPS exigée ≤ 50 m.`,
-      },
-      {
-        q: `Combien de points rapporte la quête ${quest.name} ?`,
-        a: `Valider la quête ${quest.name} rapporte ${quest.points} points dans votre carnet d'exploration Tracce.`,
-      },
-      {
-        q: `Comment se rendre à ${quest.name} ?`,
-        a: `Ce site est situé à ${cityName}. Consultez les coordonnées ouvertes OpenStreetMap pour préparer votre itinéraire pédestre ou routier.`,
-      },
-    ];
+    const questUrl = `${SITE_URL}/lieux/${quest.id}`;
 
     const questStructuredData = {
       '@context': 'https://schema.org',
@@ -473,24 +540,10 @@ async function buildSeo() {
             '@type': 'GeoCoordinates',
             latitude: quest.lat,
             longitude: quest.lng,
+            ...(quest.altitudeM ? { elevation: quest.altitudeM } : {}),
           },
-          address: {
-            '@type': 'PostalAddress',
-            addressLocality: cityName,
-            addressRegion: 'Corse',
-            addressCountry: 'FR',
-          },
-        },
-        {
-          '@type': 'FAQPage',
-          mainEntity: questFaqs.map((f) => ({
-            '@type': 'Question',
-            name: f.q,
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: f.a,
-            },
-          })),
+          isAccessibleForFree: true,
+          publicAccess: true,
         },
         {
           '@type': 'BreadcrumbList',
@@ -518,34 +571,48 @@ async function buildSeo() {
       ],
     };
 
+    const questFaqs = [
+      {
+        q: `Comment réussir la quête « ${quest.name} » ?`,
+        a: `Rendez-vous à ${cityName} dans le rayon de ${quest.radiusM} mètres autour du point. Cadrez le lieu avec votre appareil photo et appuyez sur « Valider ici » dans l'application Tracce.`,
+      },
+      {
+        q: `Quel équipement est recommandé pour « ${quest.name} » ?`,
+        a: quest.altitudeM && quest.altitudeM > 1000
+          ? `Cette quête se situe à ${quest.altitudeM} m d'altitude. Prévoyez des chaussures de marche, de l'eau et vérifiez la météo de montagne.`
+          : `Cette quête urbaine ou côtière est accessible à pied avec un smartphone chargé.`,
+      },
+      {
+        q: `Puis-je valider cette quête hors ligne ?`,
+        a: `Oui, Tracce fonctionne en mode déconnecté. La photo et les coordonnées GPS sont mémorisées sur votre appareil et synchronisées dès que vous retrouvez du réseau.`,
+      },
+    ];
+
     const questContent = `
-      <div style="margin-bottom:1rem; font-size:0.9rem; color:var(--color-text-muted);">
+      <div style="font-size:0.9rem; color:var(--color-text-muted); margin-bottom:1rem;">
         <a href="/">Accueil</a> &gt; <a href="/villes/${quest.cityId}">${cityName}</a> &gt; <span>${quest.name}</span>
       </div>
 
-      <h1>${quest.name}</h1>
-      <span class="badge">${quest.type}</span> • <span>${cityName}</span>
-
-      <div class="card" style="margin-top:1.5rem;">
-        <h2>Présentation du site</h2>
-        <p><strong>${quest.name}</strong> : ${quest.description}</p>
-      </div>
+      <h1>${quest.name} — Quête Tracce Corse</h1>
+      <p style="font-size: 1.15rem; font-weight: 500;">
+        ${quest.description}
+      </p>
 
       <div class="card">
-        <h2>Données factuelles & GPS</h2>
+        <h2>Fiche Technique de la Quête</h2>
         <table>
           <tbody>
             <tr>
-              <th>Territoire</th>
-              <td>${cityName}</td>
+              <th>Ville</th>
+              <td><a href="/villes/${quest.cityId}">${cityName}</a></td>
             </tr>
             <tr>
               <th>Type de quête</th>
-              <td>${quest.type}</td>
+              <td><span class="badge">${quest.type}</span></td>
             </tr>
             <tr>
               <th>Coordonnées GPS</th>
-              <td>${quest.lat}, ${quest.lng}</td>
+              <td>${quest.lat.toFixed(5)}, ${quest.lng.toFixed(5)}</td>
             </tr>
             ${quest.altitudeM ? `<tr><th>Altitude</th><td>${quest.altitudeM} mètres</td></tr>` : ''}
             <tr>
@@ -600,28 +667,52 @@ async function buildSeo() {
   if (fs.existsSync(path.resolve('public/media'))) {
     fs.cpSync(path.resolve('public/media'), path.join(DIST_DIR, 'media'), { recursive: true });
   }
+  if (fs.existsSync(path.resolve('public/404.html'))) {
+    fs.copyFileSync(path.resolve('public/404.html'), path.join(DIST_DIR, '404.html'));
+  }
 
-  // 4. robots.txt
-  const robotsTxt = `User-agent: *
+  // 4. robots.txt avec les 7 jetons explicites + Google-Extended et commentaires de justification
+  const robotsTxt = `# Recherche Google : moteur d'indexation web principal
+User-agent: Googlebot
+Allow: /
+
+# Règle générale pour l'ensemble des robots du Web
+User-agent: *
 Allow: /
 Disallow: /s/
 
+# OpenAI GPTBot : entraînement des modèles d'IA sur le patrimoine et la géographie corse
 User-agent: GPTBot
 Allow: /
 
+# OpenAI OAI-SearchBot : résultats de recherche et citations directes dans ChatGPT
+User-agent: OAI-SearchBot
+Allow: /
+
+# Anthropic ClaudeBot : apprentissage et indexation pour les modèles Claude
 User-agent: ClaudeBot
 Allow: /
 
+# Anthropic Claude-SearchBot : recherche en temps réel et citations de réponses dans Claude
+User-agent: Claude-SearchBot
+Allow: /
+
+# PerplexityBot : moteur conversationnel et citations de sources en direct
 User-agent: PerplexityBot
 Allow: /
 
+# Common Crawl CCBot : corpus ouvert et archivage patrimonial du web
+User-agent: CCBot
+Allow: /
+
+# Google-Extended : contrôle d'accès pour les modèles Gemini et Vertex AI
 User-agent: Google-Extended
 Allow: /
 
 Sitemap: ${SITE_URL}/sitemap.xml
 `;
   fs.writeFileSync(path.join(DIST_DIR, 'robots.txt'), robotsTxt);
-  console.log('✅ robots.txt généré.');
+  console.log('✅ robots.txt généré avec 7 jetons explicites, Google-Extended et commentaires de justification.');
 
   // 5. sitemap.xml
   const urls: string[] = [
@@ -647,26 +738,30 @@ ${urls
   fs.writeFileSync(path.join(DIST_DIR, 'sitemap.xml'), sitemapXml);
   console.log('✅ sitemap.xml généré.');
 
-  // 6. llms.txt (GEO pour agents et LLM)
+  // 6. llms.txt (GEO pour agents et LLM) avec citation blockquote > et liens [texte](url)
   const llmsTxt = `# Tracce — Rally Photo Géolocalisé en Corse
 
-> Tracce est une application web progressive (PWA) d'exploration patrimoniale et sportive en Corse. Elle propose 12 quêtes vérifiées avec validation photo et contrôle de présence GPS haute précision (≤ 50 m).
+> Tracce est une application web progressive (PWA) de rally photo géolocalisé invitant à explorer le patrimoine naturel et historique de Corse à travers Ajaccio, Bastia et Corte. Pour valider une quête et remporter des points, l'utilisateur doit se rendre physiquement sur le lieu, immortaliser l'étape avec son appareil photo et prouver sa présence via la géolocalisation GPS (≤ 50 m). Conçue pour le terrain et les zones blanches, l'application fonctionne à 100 % hors ligne avec persistance locale (IndexedDB) et synchronisation automatique vers Firebase au retour du réseau.
 
 ## Territoires couverts
-- ${SITE_URL}/villes/ajaccio : Quêtes historiques et côtières d'Ajaccio (Maison Bonaparte, Parata, Gozzi).
-- ${SITE_URL}/villes/bastia : Quêtes du Cap Corse et de la cité génoise (Terra Nova, Pigno, Biguglia).
-- ${SITE_URL}/villes/corte : Quêtes au cœur des massifs du centre Corse (Citadelle, Restonica, Monte Rotondo).
+
+- [Quêtes à Ajaccio](${SITE_URL}/villes/ajaccio) : Quêtes historiques et sentiers côtiers d'Ajaccio (Maison Bonaparte, Citadelle Miollis, Pointe de la Parata, Mont Gozzi).
+- [Quêtes à Bastia](${SITE_URL}/villes/bastia) : Cité génoise de Terra Nova, crêtes de la Serra di Pigno et lagune de Biguglia.
+- [Quêtes à Corte](${SITE_URL}/villes/corte) : Capitale paoliste, forteresse historique, gorges de la Restonica et sommet du Monte Rotondo.
 
 ## Quêtes détaillées
-${catalog.quests.map((q) => `- ${SITE_URL}/lieux/${q.id} : ${q.name} (${CITY_DETAILS[q.cityId]?.name || q.cityId}) - Type ${q.type}, ${q.points} points, rayon ${q.radiusM} m.`).join('\n')}
+
+${catalog.quests.map((q) => `- [${q.name}](${SITE_URL}/lieux/${q.id}) : ${q.name} (${CITY_DETAILS[q.cityId]?.name || q.cityId}) - Type ${q.type}, ${q.points} points, rayon de validation ${q.radiusM} m.`).join('\n')}
 
 ## Informations techniques
+
 - Données ouvertes : Sources issues d'OpenStreetMap et Wikidata.
 - Validation : Présence physique requise dans le rayon GPS de chaque cible.
-- Accès WebApp PWA : ${SITE_URL}/
+- Accès WebApp PWA : [Tracce PWA](${SITE_URL}/)
+- Jumelle Markdown : [tracce.md](${SITE_URL}/tracce.md)
 `;
   fs.writeFileSync(path.join(DIST_DIR, 'llms.txt'), llmsTxt);
-  console.log('✅ llms.txt généré.');
+  console.log('✅ llms.txt généré avec liens markdown et résumé en citation.');
 
   console.log('✨ Build SEO & GEO terminé avec succès !');
 }
