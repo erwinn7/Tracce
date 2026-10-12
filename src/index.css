@@ -56,11 +56,14 @@ body {
   margin: 0;
   background-color: var(--color-bg);
   color: var(--color-text);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: 'Newsreader', 'Lora', Georgia, 'Times New Roman', serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-button {
+button,
+input,
+select,
+textarea {
   font-family: inherit;
 }

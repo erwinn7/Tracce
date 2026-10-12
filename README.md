@@ -117,7 +117,7 @@ npm run deploy
 ## 📚 Documentation Technique
 
 Pour une analyse détaillée des choix d'architecture, des stratégies de cache, des flux de synchronisation et des limites documentées :
-- 📖 Consulter [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- 📖 Consulter le document technique officiel : [doc-technique.md](doc-technique.md) (ou [docs/doc-technique.md](docs/doc-technique.md))
 - 🧪 Consulter le journal des tests dans [docs/TESTS.md](docs/TESTS.md)
 
 ---

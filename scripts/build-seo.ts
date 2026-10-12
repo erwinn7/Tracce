@@ -99,6 +99,9 @@ function generateHtmlShell(title: string, description: string, canonicalUrl: str
   <meta property="og:type" content="website">
   <meta property="og:locale" content="fr_FR">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Lora:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
   <script type="application/ld+json">
     ${jsonLd}
   </script>
@@ -113,7 +116,7 @@ function generateHtmlShell(title: string, description: string, canonicalUrl: str
     }
     body {
       margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Newsreader', 'Lora', Georgia, 'Times New Roman', serif;
       background-color: var(--color-bg);
       color: var(--color-text);
       line-height: 1.6;
