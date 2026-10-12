@@ -1,0 +1,37 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Refus par défaut strict sur l'ensemble de la base
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Completions de l'utilisateur (M3)
+    // Structure : users/{uid}/completions/{questId}
+    match /users/{uid}/completions/{questId} {
+
+      // Lecture et écriture réservées à l'utilisateur authentifié propriétaire
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      // Contrôle strict de création et mise à jour
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        // questId du document doit correspondre à la clé du document
+        && request.resource.data.questId == questId
+        // Exactement les 6 champs autorisés (sans photo, sans champs superflus)
+        && request.resource.data.keys().hasOnly(['questId', 'completedAt', 'lat', 'lng', 'accuracyM', 'distanceToTargetM'])
+        // lat, lng, accuracyM, distanceToTargetM doivent être des nombres
+        && request.resource.data.lat is number
+        && request.resource.data.lng is number
+        && request.resource.data.accuracyM is number
+        && request.resource.data.distanceToTargetM is number
+        // completedAt doit être un timestamp ou un string/number valide
+        && (request.resource.data.completedAt is timestamp || request.resource.data.completedAt is string || request.resource.data.completedAt is number);
+
+      // Suppression autorisée par le propriétaire
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

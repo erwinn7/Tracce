@@ -16,11 +16,20 @@
         ]
       }
     ],
-    "redirects": [
-      { "source": "/", "destination": "/app/", "type": 302 }
-    ],
     "rewrites": [
       { "source": "/app/**", "destination": "/app/index.html" }
     ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    }
   }
 }

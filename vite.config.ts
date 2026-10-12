@@ -48,6 +48,27 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,json}'],
+        navigateFallback: '/app/index.html',
+        navigateFallbackDenylist: [/^\/__/], // Évite d'intercepter les URL internes Firebase
+        runtimeCaching: [
+          {
+            // CacheFirst pour les images (SVG, PNG, JPG, WebP) hors précache avec plafond d'âge et d'entrées
+            urlPattern: /\.(?:png|jpg|jpeg|svg|webp)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'tracce-images-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 jours
+              },
+            },
+          },
+          {
+            // Les requêtes Firebase (Firestore, Auth, APIs google) ne sont JAMAIS mises en cache par le SW
+            urlPattern: /^https:\/\/(?:firestore\.googleapis\.com|identitytoolkit\.googleapis\.com|securetoken\.googleapis\.com|[a-z0-9-]+\.firebaseio\.com)/i,
+            handler: 'NetworkOnly',
+          },
+        ],
       },
     }),
   ],

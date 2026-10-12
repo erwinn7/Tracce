@@ -9,6 +9,7 @@ export interface LocalCompletion {
   distanceToTargetM: number;
   photoId: string;
   isDemo?: boolean;
+  syncedToFirestore?: boolean;
 }
 
 export interface LocalPhoto {
@@ -35,10 +36,14 @@ interface TracceDB extends DBSchema {
     key: string;
     value: LocalMeta;
   };
+  customQuests: {
+    key: string;
+    value: any;
+  };
 }
 
 const DB_NAME = 'tracce_local_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<TracceDB>> | null = null;
 
@@ -54,6 +59,9 @@ export function getDB() {
         }
         if (!db.objectStoreNames.contains('meta')) {
           db.createObjectStore('meta');
+        }
+        if (!db.objectStoreNames.contains('customQuests')) {
+          db.createObjectStore('customQuests', { keyPath: 'id' });
         }
       },
     });
@@ -107,3 +115,53 @@ export async function clearDemoCompletions(): Promise<void> {
   }
   await tx.done;
 }
+
+export async function markCompletionSynced(questId: string): Promise<void> {
+  const db = await getDB();
+  const c = await db.get('completions', questId);
+  if (c) {
+    c.syncedToFirestore = true;
+    await db.put('completions', c);
+  }
+}
+
+/**
+ * Fusionne en union les validations distantes Firestore dans IndexedDB.
+ * Ne remplace pas une quête locale ayant déjà une photo liée.
+ */
+export async function mergeRemoteCompletions(remoteList: Omit<LocalCompletion, 'photoId' | 'isDemo'>[]): Promise<boolean> {
+  const db = await getDB();
+  let hasNew = false;
+  const tx = db.transaction('completions', 'readwrite');
+  const store = tx.objectStore('completions');
+
+  for (const remote of remoteList) {
+    const existing = await store.get(remote.questId);
+    if (!existing) {
+      hasNew = true;
+      await store.put({
+        ...remote,
+        photoId: '',
+        isDemo: false,
+        syncedToFirestore: true,
+      });
+    } else if (!existing.syncedToFirestore) {
+      existing.syncedToFirestore = true;
+      await store.put(existing);
+    }
+  }
+
+  await tx.done;
+  return hasNew;
+}
+
+export async function saveCustomQuest(quest: any): Promise<void> {
+  const db = await getDB();
+  await db.put('customQuests', quest);
+}
+
+export async function getAllCustomQuests(): Promise<any[]> {
+  const db = await getDB();
+  return db.getAll('customQuests');
+}
+

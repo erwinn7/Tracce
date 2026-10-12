@@ -1,21 +1,27 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useCatalog } from './hooks/useCatalog';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import { useCompletions } from './hooks/useCompletions';
+import { useSync } from './hooks/useSync';
+import { useAuth } from './hooks/useAuth';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { CitySelector } from './components/CitySelector';
 import { QuestCard } from './components/QuestCard';
 import { QuestDetail } from './components/QuestDetail';
 import { QuestValidationModal } from './components/QuestValidationModal';
 import { FloatingBanner } from './components/FloatingBanner';
+import { SyncIndicator } from './components/SyncIndicator';
+import { MobileDrawer } from './components/MobileDrawer';
+import { AuthModal } from './components/AuthModal';
+import { AdminAddPlace } from './components/AdminAddPlace';
 import { computeScore } from './utils/geo';
 import type { CityId, QuestType, Quest } from './types/quest';
 import { TYPE_LABELS } from './types/quest';
 import type { LocalCompletion } from './lib/db';
 import './App.css';
 
-type Screen = 'welcome' | 'quests';
+type Screen = 'welcome' | 'quests' | 'admin';
 
 function App() {
   const swRegistrationRef = useRef<ServiceWorkerRegistration | undefined>(undefined);
@@ -34,12 +40,12 @@ function App() {
     },
   });
 
-  // Vérification périodique (toutes les heures) et sur visibilitychange
+  // Vérification périodique SW
   useEffect(() => {
     const checkUpdate = () => {
       if (swRegistrationRef.current) {
         swRegistrationRef.current.update().catch((err) => {
-          console.warn('[SW] Erreur lors de la vérification de mise à jour:', err);
+          console.warn('[SW] Erreur vérification MAJ:', err);
         });
       }
     };
@@ -60,12 +66,22 @@ function App() {
     };
   }, []);
 
-  const { catalog, loading: loadingCatalog, error: errorCatalog } = useCatalog();
+  const { catalog, loading: loadingCatalog, error: errorCatalog, addCustomQuest } = useCatalog();
   const { canShowPrompt, isIos, installApp, dismissInstall } = useInstallPrompt();
-  const { completions, saveCompletion, resetDemo } = useCompletions();
+  const { completions, saveCompletion, resetDemo, refreshCompletions } = useCompletions();
+  const { user: authUser, login: authLogin, logout: authLogout } = useAuth();
 
-  // Écran actif : accueil ou liste des quêtes
+  // Synchronisation Firestore (M3)
+  const handleRemoteMerged = useCallback(() => {
+    refreshCompletions();
+  }, [refreshCompletions]);
+
+  const { syncState, pendingCount, syncOneCompletion } = useSync(handleRemoteMerged);
+
+  // Navigation & Drawer
   const [currentScreen, setCurrentScreen] = useState<Screen>('welcome');
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
   // Mode Démo
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
@@ -73,7 +89,7 @@ function App() {
   // Modal de validation
   const [validatingQuest, setValidatingQuest] = useState<Quest | null>(null);
 
-  // Navigation & filtres
+  // Filtres
   const [selectedCity, setSelectedCity] = useState<CityId | 'all'>('all');
   const [selectedType, setSelectedType] = useState<QuestType | 'all'>('all');
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
@@ -87,7 +103,7 @@ function App() {
     return map;
   }, [completions]);
 
-  // Scores recalculés à la volée
+  // Scores
   const realScore = useMemo(
     () => computeScore(completions, catalog, false),
     [completions, catalog]
@@ -114,7 +130,6 @@ function App() {
     setNeedRefresh(false);
   };
 
-  // Priorité : Mise à jour d'abord, Installation ensuite. Une seule bannière à la fois.
   const activeBannerType = needRefresh ? 'update' : canShowPrompt ? 'install' : null;
 
   const typesList: { id: QuestType | 'all'; label: string }[] = [
@@ -127,7 +142,7 @@ function App() {
 
   return (
     <div className={`app-container ${activeBannerType ? 'has-floating-banner' : ''}`}>
-      {/* Bannière flottante en haut de l'écran */}
+      {/* Bannière flottante */}
       {activeBannerType === 'update' && (
         <FloatingBanner
           type="update"
@@ -145,52 +160,58 @@ function App() {
         />
       )}
 
-      {/* En-tête */}
+      {/* En-tête avec bouton menu burger */}
       <header className="app-header">
-        <div
-          className="header-brand"
-          onClick={() => {
-            setSelectedQuest(null);
-            setCurrentScreen('welcome');
-          }}
-          role="button"
-          tabIndex={0}
-        >
-          <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="Logo Tracce" className="app-logo" />
-          <div className="header-titles">
-            <h1 className="app-title">Tracce</h1>
-            <p className="app-subtitle">Rally photo géolocalisé en Corse</p>
+        <div className="header-left">
+          <button
+            type="button"
+            className="btn-hamburger"
+            onClick={() => setIsDrawerOpen(true)}
+            aria-label="Ouvrir le menu"
+          >
+            <span className="hamburger-line" />
+            <span className="hamburger-line" />
+            <span className="hamburger-line" />
+          </button>
+
+          <div
+            className="header-brand"
+            onClick={() => {
+              setSelectedQuest(null);
+              setCurrentScreen('welcome');
+            }}
+            role="button"
+            tabIndex={0}
+          >
+            <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="Logo Tracce" className="app-logo" />
+            <div className="header-titles">
+              <h1 className="app-title">Tracce</h1>
+              <p className="app-subtitle">Rally photo en Corse</p>
+            </div>
           </div>
         </div>
 
-        {/* Score & Navigation Accueil / Quêtes */}
+        {/* Droite : Sync (admin), Profil/Login & Score */}
         <div className="header-scores-wrap">
-          {currentScreen === 'quests' ? (
-            <button
-              type="button"
-              className="btn-header-nav"
-              onClick={() => {
-                setSelectedQuest(null);
-                setCurrentScreen('welcome');
-              }}
-            >
-              Accueil
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn-header-nav btn-header-nav-active"
-              onClick={() => setCurrentScreen('quests')}
-            >
-              Quêtes
-            </button>
+          {authUser?.isAdmin && (
+            <SyncIndicator syncState={syncState} pendingCount={pendingCount} />
           )}
+
+          {/* Bouton rapide Compte / Login */}
+          <button
+            type="button"
+            className={`btn-user-pill ${authUser?.isAdmin ? 'btn-user-admin' : ''}`}
+            onClick={() => setIsAuthModalOpen(true)}
+            title={authUser ? `Connecté: ${authUser.username}` : 'Se connecter'}
+          >
+            {authUser ? (authUser.isAdmin ? '👑 Erwinn' : `👤 ${authUser.username}`) : '🔑 Connexion'}
+          </button>
 
           <div className="score-badge">
             <span className="score-val">{realScore}</span>
             <span className="score-lbl">pts</span>
           </div>
-          {demoScore > 0 && (
+          {authUser?.isAdmin && demoScore > 0 && (
             <div className="score-badge score-badge-demo" title="Points en mode démo (séparés)">
               <span className="score-val">+{demoScore}</span>
               <span className="score-lbl">démo</span>
@@ -199,39 +220,64 @@ function App() {
         </div>
       </header>
 
-      {/* Barre Réglages & Mode Démo (uniquement sur l'écran des quêtes ou si démo active) */}
-      {currentScreen === 'quests' && (
+      {/* Barre Réglages & Mode Démo (uniquement pour l'admin) */}
+      {currentScreen === 'quests' && authUser?.isAdmin && (
         <section className="demo-control-bar">
-          <label className="demo-toggle-label">
-            <input
-              type="checkbox"
-              checked={isDemoMode}
-              onChange={(e) => setIsDemoMode(e.target.checked)}
-            />
-            <span className="demo-toggle-text">
-              Mode Démo {isDemoMode ? '(actif - sans GPS)' : ''}
-            </span>
-          </label>
-          {demoScore > 0 && (
-            <button
-              type="button"
-              className="btn-reset-demo"
-              onClick={resetDemo}
-              title="Effacer toutes les validations de démo"
-            >
-              Réinitialiser démo
-            </button>
-          )}
+          <div className="demo-control-left">
+            <label className="demo-toggle-label">
+              <input
+                type="checkbox"
+                checked={isDemoMode}
+                onChange={(e) => setIsDemoMode(e.target.checked)}
+              />
+              <span className="demo-toggle-text">
+                Mode Démo {isDemoMode ? '(actif)' : ''}
+              </span>
+            </label>
+          </div>
+
+          <div className="demo-control-right">
+            {demoScore > 0 && (
+              <button
+                type="button"
+                className="btn-reset-demo"
+                onClick={resetDemo}
+                title="Effacer toutes les validations de démo"
+              >
+                Réinitialiser démo
+              </button>
+            )}
+          </div>
         </section>
       )}
 
-      {/* Contenu principal selon l'écran actif */}
+      {/* Contenu principal */}
       <main className="app-main">
         {currentScreen === 'welcome' ? (
           <WelcomeScreen
             onStart={() => setCurrentScreen('quests')}
             totalQuests={catalog?.quests.length ?? 0}
           />
+        ) : currentScreen === 'admin' ? (
+          authUser?.isAdmin ? (
+            <AdminAddPlace
+              onAddQuest={async (q) => {
+                await addCustomQuest(q);
+              }}
+              onBack={() => setCurrentScreen('quests')}
+            />
+          ) : (
+            <div className="empty-state">
+              <p>Accès restreint aux administrateurs.</p>
+              <button
+                type="button"
+                className="btn-link"
+                onClick={() => setCurrentScreen('quests')}
+              >
+                Retour aux quêtes
+              </button>
+            </div>
+          )
         ) : selectedQuest ? (
           <QuestDetail
             quest={selectedQuest}
@@ -269,9 +315,11 @@ function App() {
                 <h2 className="section-title">
                   Quêtes ({filteredQuests.length})
                 </h2>
-                <span className="section-subtitle">
-                  {completions.length} validée{completions.length > 1 ? 's' : ''}
-                </span>
+                <div className="section-status-badges">
+                  <span className="section-subtitle">
+                    {completions.length} validée{completions.length > 1 ? 's' : ''}
+                  </span>
+                </div>
               </div>
 
               {loadingCatalog && <p className="status-msg">Chargement des quêtes...</p>}
@@ -308,20 +356,45 @@ function App() {
         )}
       </main>
 
-      {/* Modal de validation d'une quête (Écran 4) */}
+      {/* Menu Drawer Mobile */}
+      <MobileDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        currentScreen={currentScreen}
+        onNavigate={(screen) => {
+          setSelectedQuest(null);
+          setCurrentScreen(screen);
+        }}
+        currentUser={authUser}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onLogout={authLogout}
+      />
+
+      {/* Modal d'authentification */}
+      {isAuthModalOpen && (
+        <AuthModal
+          currentUser={authUser}
+          onLogin={authLogin}
+          onLogout={authLogout}
+          onClose={() => setIsAuthModalOpen(false)}
+        />
+      )}
+
+      {/* Modal de validation */}
       {validatingQuest && (
         <QuestValidationModal
           quest={validatingQuest}
           isDemoMode={isDemoMode}
           onSuccess={async (completion, photoBlob) => {
             await saveCompletion(completion, photoBlob);
+            syncOneCompletion(completion);
             setValidatingQuest(null);
           }}
           onClose={() => setValidatingQuest(null)}
         />
       )}
 
-      {/* Pied de page avec crédit OSM */}
+      {/* Pied de page */}
       <footer className="app-footer">
         <p className="footer-credits">
           Données cartographiques & coordonnées :{' '}

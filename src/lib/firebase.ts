@@ -1,5 +1,9 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -11,16 +15,20 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-/**
- * Firebase est initialisé uniquement si la configuration est présente.
- * En M0, le module existe mais n'est pas importé par l'application.
- * Il sera utilisé à partir de M3 (Auth anonyme + Firestore sync).
- */
 const isConfigured = Object.values(firebaseConfig).every(
-  (v) => v != null && v !== '',
+  (v) => v != null && v !== ''
 );
 
 export const app = isConfigured ? initializeApp(firebaseConfig) : null;
-export const db = app ? getFirestore(app) : null;
+
+// Firestore avec cache persistant multi-onglets (règle M3)
+export const db = app
+  ? initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    })
+  : null;
+
 export const auth = app ? getAuth(app) : null;
 export { isConfigured as isFirebaseConfigured };

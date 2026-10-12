@@ -73,11 +73,11 @@ Firebase (plan Spark)
 
 | Ressource | Stratégie | Stockage | Pourquoi |
 |-----------|-----------|----------|----------|
-| App shell (HTML, CSS, JS) | Precache | Cache Storage | Disponibilité immédiate hors ligne |
-| `data/quests.json` | Precache | Cache Storage | Catalogue statique complet consultable sans réseau (mis à jour à chaque nouveau build) |
-| `favicon.svg`, icônes PNG | Precache | Cache Storage | Branding hors ligne et icônes d'installation |
-| API Firestore | NetworkFirst | Cache Storage | Données fraîches quand possible, fallback hors ligne |
-| Tuiles OSM (M5, optionnel) | CacheFirst (à l'usage) | Cache Storage | Pas de préchargement massif (politique OSM) |
+| App shell (HTML, CSS, JS) | Precache (`navigateFallback: /app/index.html`) | Cache Storage | Disponibilité immédiate de la SPA hors ligne |
+| `data/quests.json` | Precache | Cache Storage | Catalogue statique complet consultable sans réseau |
+| Illustrations (`hero-landscape.svg`, `favicon.svg`, icônes) | Precache & CacheFirst | Cache Storage | Affichage instantané du branding et des illustrations |
+| Images runtime (`.png`, `.jpg`, `.svg`, `.webp`) | CacheFirst (max: 50 entrées, 30 jours) | Cache Storage (`tracce-images-cache`) | Économie de bande passante et navigation fluide |
+| APIs Firebase (Firestore, Auth, Identity Toolkit) | **NetworkOnly** (jamais interceptées par le SW) | Aucun SW (géré par Firestore SDK) | Le SDK Firestore possède son propre cache persistant multi-onglets ; intercepter ces requêtes dans le SW causerait des conflits de synchronisation |
 
 ### 4.2 Modèle de données du catalogue (statique)
 
@@ -154,9 +154,32 @@ type Catalog = {
 
 > Photo base64 ≤ 200 Ko → document ≤ 250 Ko → sous la limite de 1 MiB.
 
-### 6.2 Mécanisme de synchronisation et cas limites
+### 6.2 Mécanisme de synchronisation et cas limites (M3)
 
-> À compléter en M3.
+- **Architecture à double niveau (IndexedDB + Firestore localCache)** :
+  1. *Affichage UI immédiat* : IndexedDB (`idb`) est la source de vérité pour l'affichage local. L'UI n'attend **jamais** la résolution de la promesse `setDoc` (qui ne se résout qu'après confirmation serveur).
+  2. *Écriture asynchrone* : toute validation réelle enregistrée dans IndexedDB déclenche un `setDoc` vers `users/{uid}/completions/{questId}` (champs : `questId`, `completedAt`, `lat`, `lng`, `accuracyM`, `distanceToTargetM`, sans la photo).
+  3. *Isolation du Mode Démo* : les validations démo ne sont **jamais** envoyées vers Firestore ni incluses dans les files d'attente réseau.
+  4. *Indicateur d'état temps réel* :
+     - `Hors ligne` : détecté via `navigator.onLine === false`.
+     - `En attente (n)` : basé sur `snapshot.metadata.hasPendingWrites` de l'écouteur Firestore.
+     - `Synchronisé` : toutes les écritures sont acquittées par le serveur distant.
+
+- **Cas limites analysés et traités** :
+  1. *Premier lancement hors ligne (aucun UID disponible)* :
+     - Si l'utilisateur démarre l'application sans aucun réseau au premier usage, l'authentification anonyme ne peut pas être initialisée.
+     - *Solution retenue* : les validations sont conservées localement dans IndexedDB avec le drapeau `syncedToFirestore: false`. Dès le retour du réseau (`online` ou `visibilitychange`), `signInAnonymously()` est déclenché, puis la file des validations en attente est dépilée vers Firestore.
+  2. *Absence de Background Sync sur iOS (Safari)* :
+     - L'API W3C `Background Synchronization` n'est pas supportée par WebKit sur iOS.
+     - *Solution retenue* : nous ne dépendons pas de Background Sync. La synchronisation est déclenchée activement à trois moments clés côté client :
+       - Au montage initial de l'application (`useEffect`).
+       - Au retour de la connexion réseau (écouteur d'événement `online`).
+       - Au retour de l'application au premier plan (écouteur `visibilitychange` sur `document.visibilityState === 'visible'`).
+  3. *Perte des écritures en attente si effacement des données du navigateur* :
+     - Si l'utilisateur vide le cache/stockage du navigateur avant que les écritures en attente aient pu atteindre Firestore, ces données locales sont perdues.
+     - *Mitigation* : documentée comme limite inhérente aux applications Web sans compte authentifié persistant (cloud sync anonyme). L'utilisation d'une authentification Google (bonus M7b) permettra une restauration cross-devices.
+  4. *Fusion bidirectionnelle (Union)* :
+     - À la reconnexion, les quêtes distantes présentes sous `users/{uid}/completions` sont lues et fusionnées en union dans IndexedDB (sans écraser les photos locales existantes).
 
 ## 7. Permissions et capacités de l'appareil
 
@@ -193,15 +216,26 @@ Aucune notification en v1 de base (justification : le rally est une activité po
 
 ## 9. Visibilité : SEO et agents IA
 
-### 9.1 SEO / GEO : choix et vérifications
+### 9.1 SEO / GEO : Choix et vérifications (M4)
 
-> À compléter en M4.
+- **Architecture de pré-rendu statique** :
+  - Génération au build sans framework SSR lourd via `scripts/build-seo.ts` (exécuté automatiquement lors de `npm run build`).
+  - Arborescence générée dans `dist/` :
+    - `/` (`dist/index.html`) : Présentation générale, catalogue complet des 12 quêtes, FAQ globale.
+    - `/villes/{ajaccio|bastia|corte}.html` : Pages territoires dédiées avec tableaux de quêtes et FAQ locale.
+    - `/lieux/{questId}.html` : Fiches unitaires pour chaque lieu avec tableau factuel (coordonnées GPS, altitude, rayon, points, source OSM).
+  - L'application interactive SPA vit isolée sous `/app/`.
 
-- Pages statiques générées au build (`scripts/build-seo.ts`).
-- `robots.txt` autorisant `GPTBot`, `ClaudeBot`, `PerplexityBot`, `Google-Extended` sur les pages publiques.
-- `noindex` sur `/s/` (pages de partage) et `/app` (SPA).
-- `llms.txt`, `sitemap.xml`, JSON-LD (`TouristAttraction`, `FAQPage`, `BreadcrumbList`).
-- FAQ visible en HTML + JSON-LD correspondant.
+- **GEO (Generative Engine Optimization) pour les agents IA & LLM** :
+  - **Fichier `llms.txt`** à la racine : description concise du projet en 3 lignes, liste des liens clés et fiches quêtes synthétisées en une phrase pour faciliter la citation par les moteurs génératifs.
+  - **Fichier `robots.txt`** : autorise explicitement les robots d'IA majeurs (`GPTBot`, `ClaudeBot`, `PerplexityBot`, `Google-Extended`) sur l'ensemble du contenu public, et applique `Disallow: /app/` et `Disallow: /s/`.
+  - **Fichier `sitemap.xml`** : indexe l'ensemble des 16 URLs statiques avec fréquence hebdomadaire et dates de révision.
+  - **Données structurées Schema.org (JSON-LD)** :
+    - Pages lieux : `@type: TouristAttraction` avec `geo: GeoCoordinates`, `address: PostalAddress`, `BreadcrumbList` et `FAQPage`.
+    - Pages villes : `@type: Place` et `FAQPage`.
+    - Page d'accueil : `@type: WebSite`.
+  - **Correspondance stricte FAQ** : chaque question/réponse du balisage JSON-LD correspond mot à mot au texte HTML visible sur la page.
+  - **Accessibilité sans JS** : 100 % du contenu éditorial, tableaux de données et FAQ est lisible même si JavaScript est désactivé dans le navigateur.
 
 ## 10. Sécurité et vie privée
 

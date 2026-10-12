@@ -56,3 +56,41 @@
 | 8 | Mode Démo commutable | Chrome Desktop | ✅ Réussi | Validation sans GPS, score démo séparé (`+X démo`), réinitialisation en 1 clic |
 | 9 | Score recalculé dynamiquement | Chrome Desktop | ✅ Réussi | Dérivé du catalogue, pas de compteur brut |
 | 10 | Fonctionnement hors ligne de la validation | Chrome DevTools (Offline) | ✅ Réussi | Photo compressée et enregistrée en IndexedDB en mode avion |
+
+---
+
+## M3 — Hors ligne, synchronisation
+
+**Date** : 2026-10-12
+
+| # | Test | Appareil / Navigateur | Résultat | Notes |
+|---|------|----------------------|----------|-------|
+| 1 | Workbox navigateFallback (/app/index.html) | Chrome DevTools (Offline) | ✅ Réussi | Toutes les routes SPA sont résolues hors ligne |
+| 2 | Runtime caching images (CacheFirst, max: 50, 30j) | Chrome DevTools | ✅ Réussi | Cache `tracce-images-cache` actif |
+| 3 | Bypass absolu des requêtes Firebase dans le SW | Chrome DevTools Network | ✅ Réussi | Requêtes Firestore/Auth traitées par le SDK natif en `NetworkOnly` |
+| 4 | Initialisation Firestore persistentLocalCache | Chrome / DevTools IndexedDB | ✅ Réussi | `localCache` avec `persistentMultipleTabManager` actif |
+| 5 | Validation réelle écrite dans Firestore sans bloquer l'UI | Chrome DevTools | ✅ Réussi | UI mise à jour instantanément, `setDoc` asynchrone |
+| 6 | Isolation stricte du Mode Démo | Firebase Console / DevTools | ✅ Réussi | Aucune validation démo n'est écrite dans Firestore |
+| 7 | Gestion du premier lancement hors ligne (sans UID) | Simulateur Offline | ✅ Réussi | Validations gardées en attente, auth déclenchée au retour réseau |
+| 8 | Indicateur visuel de synchronisation | UI Accueil / Liste | ✅ Réussi | Affiche « Synchronisé », « En attente (n) » et « Hors ligne » |
+| 9 | Déclenchement au retour réseau (`online`) et premier plan (`visibilitychange`) | Chrome Desktop / iOS | ✅ Réussi | Remplace l'absence de Background Sync sur iOS |
+| 10 | Fusion en union des quêtes distantes dans IndexedDB | Chrome DevTools | ✅ Réussi | Quêtes distantes importées localement à la reconnexion |
+| 11 | Règles de sécurité firestore.rules | Émulateur / Console | ✅ Réussi | Refus par défaut, validation stricte types, champs et ownership |
+
+---
+
+## M4 — SEO, GEO (Generative Engine Optimization) & Rôles
+
+**Date** : 2026-10-12
+
+| # | Test | Appareil / Outil | Résultat | Notes |
+|---|------|------------------|----------|-------|
+| 1 | Pré-rendu HTML statique (build-seo.ts) | Node / FS | ✅ Réussi | Pages racine (`index.html`), territoires (`villes/*.html`) et fiches (`lieux/*.html`) générées |
+| 2 | Données structurées Schema.org JSON-LD | Validateur Schema.org / Rich Results | ✅ Réussi | Balises `TouristAttraction`, `GeoCoordinates`, `PostalAddress`, `FAQPage`, `BreadcrumbList`, `WebSite` valides |
+| 3 | Fichier robots.txt optimisé IA | Inspecteur HTTP | ✅ Réussi | Autorise GPTBot, ClaudeBot, PerplexityBot, Google-Extended sur les fiches ; protège `/app/` et `/s/` |
+| 4 | Sitemap XML indexant le catalogue | XML Validator | ✅ Réussi | 16 URLs publiques générées avec `<lastmod>` et `<priority>` |
+| 5 | Fichier llms.txt à la racine | Navigateur / curl | ✅ Réussi | Présentation concise Markdown pour moteurs génératifs et LLMs |
+| 6 | Masquage du mode démo pour l'utilisateur standard | Navigateur / Mobile | ✅ Réussi | Barre de contrôle démo invisible hors session administrateur |
+| 7 | Masquage de l'indicateur de synchronisation hors admin | Navigateur / Mobile | ✅ Réussi | Statut de synchronisation Cloud Firestore visible uniquement par l'admin (`erwinn`) |
+| 8 | Accès administration et ajout de quête | Compte `erwinn` / Formulaire | ✅ Réussi | Page « Ajouter une quête » accessible uniquement avec identifiants admin |
+
