@@ -2037,40 +2037,102 @@
 }
 
 /* Cadre tableau en liège pour la carte */
-.corkboard-frame {
-  background: #ecd5b1;
-  background-image: radial-gradient(#d8be94 15%, transparent 16%), radial-gradient(#d8be94 15%, transparent 16%);
-  background-size: 16px 16px;
-  background-position: 0 0, 8px 8px;
-  border: 8px solid #85583f;
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-md);
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.25), 0 4px 12px rgba(0,0,0,0.1);
+/* Barre de contrôles de la carte */
+.board-controls-wrap {
   display: flex;
-  justify-content: center;
   align-items: center;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
 }
 
-.corsica-map-svg {
+.btn-map-control {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+  font-family: inherit;
+}
+
+.btn-map-control:hover {
+  background-color: var(--color-primary-alpha);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btn-map-control-pins {
+  background-color: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.btn-map-control-pins:hover {
+  background-color: #fee2e2;
+  border-color: #f87171;
+  color: #991b1b;
+}
+
+/* Cadre de la vraie carte du monde Leaflet */
+.real-map-wrapper {
+  position: relative;
   width: 100%;
-  max-width: 520px;
-  height: auto;
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  overflow: visible;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  border: 2px solid var(--color-border);
+  background-color: #e2e8f0;
 }
 
-/* Animation des épingles d'enquêteur */
-.detective-pin-group {
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+.leaflet-map-element {
+  width: 100%;
+  height: 480px;
+  min-height: 400px;
+  z-index: 1;
 }
 
-.detective-pin-group:hover {
-  transform: translateY(-4px) scale(1.15);
+@media (min-width: 769px) {
+  .leaflet-map-element {
+    height: 560px;
+  }
 }
 
-.detective-pin-group.pin-selected {
-  transform: translateY(-4px) scale(1.25);
+/* Style des épingles d'enquêteur sur Leaflet */
+.leaflet-detective-pin {
+  background: none !important;
+  border: none !important;
+}
+
+.detective-pin-container {
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  filter: drop-shadow(0 2px 5px rgba(0,0,0,0.3));
+}
+
+.detective-pin-container:hover {
+  transform: translateY(-6px) scale(1.18);
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+}
+
+.pin-active-pulse {
+  transform: translateY(-6px) scale(1.22);
+  filter: drop-shadow(0 6px 12px rgba(220, 38, 38, 0.5));
+}
+
+.leaflet-unvisited-pin {
+  background: none !important;
+  border: none !important;
+  opacity: 0.65;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.leaflet-unvisited-pin:hover {
+  opacity: 1;
+  transform: scale(1.25);
 }
 
 /* Fiche détaillée de l'épingle active */

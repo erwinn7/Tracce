@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import type { AuthUser } from '../hooks/useAuth';
 import type { Catalog, Quest } from '../types/quest';
 import { getPhoto, type LocalCompletion } from '../lib/db';
@@ -17,23 +19,77 @@ interface CompletedQuestItem {
   completion: LocalCompletion;
   quest?: Quest;
   photoUrl?: string;
-  x: number;
-  y: number;
+  lat: number;
+  lng: number;
 }
 
-// Projection équirectangulaire calée sur les coordonnées réelles de la Corse
-// Latitude : 41.30 (Bonifacio) à 43.05 (Cap Corse)
-// Longitude : 8.50 (Ouest) à 9.60 (Est)
-function projectCoords(lat: number, lng: number): { x: number; y: number } {
-  const minLat = 41.30;
-  const maxLat = 43.05;
-  const minLng = 8.50;
-  const maxLng = 9.60;
+// Création d'une icône d'épingle rouge d'enquêteur 3D réaliste pour Leaflet
+function createDetectivePinIcon(questName: string, isSelected: boolean = false) {
+  const pinSize = isSelected ? 42 : 36;
+  const height = isSelected ? 50 : 44;
+  const needleY = height - 4;
+  const headRadius = isSelected ? 14 : 12;
+  const headY = 16;
+  const headX = pinSize / 2;
 
-  const x = 50 + ((lng - minLng) / (maxLng - minLng)) * 400;
-  const y = 40 + ((maxLat - lat) / (maxLat - minLat)) * 620;
+  const svgHtml = `
+    <div class="detective-pin-container ${isSelected ? 'pin-active-pulse' : ''}" title="${questName}">
+      <svg width="${pinSize}" height="${height}" viewBox="0 0 ${pinSize} ${height}" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <!-- Dégradé sphérique 3D pour la boule d'épingle rouge -->
+          <radialGradient id="pin-sphere-${pinSize}" cx="35%" cy="32%" r="65%">
+            <stop offset="0%" stop-color="#ff8a80" />
+            <stop offset="25%" stop-color="#ef4444" />
+            <stop offset="65%" stop-color="#dc2626" />
+            <stop offset="90%" stop-color="#991b1b" />
+            <stop offset="100%" stop-color="#450a0a" />
+          </radialGradient>
+          <!-- Ombre portée douce -->
+          <radialGradient id="pin-shadow-grad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="rgba(0,0,0,0.5)" />
+            <stop offset="100%" stop-color="rgba(0,0,0,0)" />
+          </radialGradient>
+        </defs>
 
-  return { x: Math.round(x), y: Math.round(y) };
+        <!-- Ombre sous la pointe de l'aiguille -->
+        <ellipse cx="${headX + 4}" cy="${needleY + 1}" rx="7" ry="3.5" fill="url(#pin-shadow-grad)" />
+
+        <!-- Aiguille métallique brillante plantée dans la carte -->
+        <polygon points="${headX - 1.8},${headY + headRadius - 2} ${headX + 1.8},${headY + headRadius - 2} ${headX},${needleY}" fill="#cbd5e1" stroke="#475569" stroke-width="0.6"/>
+
+        <!-- Tête sphérique rouge d'enquêteur -->
+        <circle cx="${headX}" cy="${headY}" r="${headRadius}" fill="url(#pin-sphere-${pinSize})" stroke="#7f1d1d" stroke-width="1"/>
+
+        <!-- Reflet brillant spéculaire (effet verre/plastique glacé) -->
+        <ellipse cx="${headX - headRadius * 0.35}" cy="${headY - headRadius * 0.35}" rx="${headRadius * 0.38}" ry="${headRadius * 0.22}" fill="#ffffff" opacity="0.85" transform="rotate(-25 ${headX - headRadius * 0.35} ${headY - headRadius * 0.35})"/>
+        <circle cx="${headX - headRadius * 0.3}" cy="${headY - headRadius * 0.35}" r="${headRadius * 0.16}" fill="#ffffff" opacity="0.95"/>
+      </svg>
+    </div>
+  `;
+
+  return L.divIcon({
+    className: 'leaflet-detective-pin',
+    html: svgHtml,
+    iconSize: [pinSize, height],
+    iconAnchor: [headX, needleY], // L'aiguille pointe exactement sur la coordonnée GPS
+    popupAnchor: [0, -height + 6],
+  });
+}
+
+// Icône discrète pour les quêtes non encore visitées
+function createUnvisitedPinIcon(name: string) {
+  const svg = `
+    <div style="background:white; border:2px dashed #94a3b8; border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 4px rgba(0,0,0,0.2);" title="${name}">
+      <div style="width:6px; height:6px; background:#94a3b8; border-radius:50%;"></div>
+    </div>
+  `;
+  return L.divIcon({
+    className: 'leaflet-unvisited-pin',
+    html: svg,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+    popupAnchor: [0, -10],
+  });
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
@@ -47,8 +103,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 }) => {
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const markersLayerRef = useRef<L.LayerGroup | null>(null);
 
-  // Filtrer les complétions réelles (non démo)
+  // Filtrer les complétions réelles (hors mode démo)
   const realCompletions = useMemo(
     () => completions.filter((c) => !c.isDemo),
     [completions]
@@ -85,23 +144,142 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     };
   }, [realCompletions]);
 
-  // Associer chaque complétion à sa quête du catalogue
+  // Associer chaque complétion à sa quête du catalogue avec coordonnées réelles
   const completedItems = useMemo<CompletedQuestItem[]>(() => {
     if (!catalog) return [];
     return realCompletions.map((c) => {
       const quest = catalog.quests.find((q) => q.id === c.questId);
       const lat = quest ? quest.lat : c.lat;
       const lng = quest ? quest.lng : c.lng;
-      const { x, y } = projectCoords(lat, lng);
       return {
         completion: c,
         quest,
         photoUrl: photoUrls[c.questId],
-        x,
-        y,
+        lat,
+        lng,
       };
     });
   }, [realCompletions, catalog, photoUrls]);
+
+  // Initialisation et gestion de la carte Leaflet (Carte du monde centrée sur la Corse)
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    // Éviter la double instanciation
+    if (!mapInstanceRef.current) {
+      const map = L.map(mapContainerRef.current, {
+        center: [42.15, 9.15], // Centre géographique de la Corse
+        zoom: 8,
+        minZoom: 3,
+        maxZoom: 18,
+        scrollWheelZoom: true,
+      });
+
+      // Tuiles cartographiques OpenStreetMap mondiales haute résolution
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributeurs',
+      }).addTo(map);
+
+      markersLayerRef.current = L.layerGroup().addTo(map);
+      mapInstanceRef.current = map;
+    }
+
+    const map = mapInstanceRef.current;
+    const markersLayer = markersLayerRef.current;
+    if (!map || !markersLayer) return;
+
+    markersLayer.clearLayers();
+
+    // 1. Quêtes non visitées du catalogue (points gris discrets)
+    if (catalog?.quests) {
+      catalog.quests.forEach((q) => {
+        const isDone = completedItems.some((ci) => ci.completion.questId === q.id);
+        if (isDone) return;
+
+        const unvisitedMarker = L.marker([q.lat, q.lng], {
+          icon: createUnvisitedPinIcon(q.name),
+        });
+
+        unvisitedMarker.bindPopup(`
+          <div style="font-family:inherit; min-width:160px;">
+            <strong style="color:#2D4A3E; font-size:13px;">${q.name}</strong>
+            <p style="margin:4px 0 0; font-size:11px; color:#64748b;">Quête à découvrir (+${q.points} pts)</p>
+          </div>
+        `);
+
+        markersLayer.addLayer(unvisitedMarker);
+      });
+    }
+
+    // 2. Fil rouge d'enquête reliant les quêtes réussies
+    if (completedItems.length > 1) {
+      const latlngs = completedItems.map((ci) => [ci.lat, ci.lng] as [number, number]);
+      const polyline = L.polyline(latlngs, {
+        color: '#dc2626',
+        weight: 3,
+        opacity: 0.75,
+        dashArray: '6, 6',
+      });
+      markersLayer.addLayer(polyline);
+    }
+
+    // 3. Épingles rouges d'enquêteur sur les lieux visités
+    completedItems.forEach((item) => {
+      const isSelected = selectedPinId === item.completion.questId;
+      const marker = L.marker([item.lat, item.lng], {
+        icon: createDetectivePinIcon(item.quest?.name || 'Lieu visité', isSelected),
+        zIndexOffset: isSelected ? 1000 : 500,
+      });
+
+      // Contenu du pop-up style fiche d'enquêteur
+      const popupHtml = `
+        <div style="font-family: 'Newsreader', serif; min-width: 190px; text-align: left;">
+          ${item.photoUrl ? `
+            <div style="margin-bottom: 8px; border-radius: 6px; overflow: hidden; max-height: 110px; border: 1px solid #e2e8e5;">
+              <img src="${item.photoUrl}" style="width: 100%; height: 110px; object-fit: cover; display: block;" alt="${item.quest?.name}" />
+            </div>
+          ` : ''}
+          <div style="color: #991b1b; font-size: 11px; font-weight: 700; text-transform: uppercase;">📍 Quête Épinglée</div>
+          <strong style="color: #2D4A3E; font-size: 15px; display: block; margin: 2px 0 4px;">${item.quest?.name || 'Lieu exploré'}</strong>
+          <div style="font-size: 11px; color: #52525b; line-height: 1.4;">
+            <div>🗓️ ${new Date(item.completion.completedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</div>
+            <div>📏 Distance : ${Math.round(item.completion.distanceToTargetM)} m</div>
+            <div>🎯 Récompense : +${item.quest?.points || 10} pts</div>
+          </div>
+        </div>
+      `;
+
+      marker.bindPopup(popupHtml);
+
+      marker.on('click', () => {
+        setSelectedPinId(item.completion.questId);
+      });
+
+      markersLayer.addLayer(marker);
+    });
+
+    // Invalidation de la taille pour s'assurer que Leaflet s'affiche correctement
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 150);
+
+  }, [completedItems, catalog, selectedPinId]);
+
+  // Recadrer la carte sur la Corse
+  const handleRecenterCorsica = () => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setView([42.15, 9.15], 8, { animate: true });
+    }
+  };
+
+  // Zoomer sur tous les points épinglés
+  const handleFitPins = () => {
+    if (mapInstanceRef.current && completedItems.length > 0) {
+      const bounds = L.latLngBounds(completedItems.map((ci) => [ci.lat, ci.lng]));
+      mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 13, animate: true });
+    }
+  };
 
   // Calcul du score total et statistiques
   const totalScore = useMemo(() => {
@@ -138,7 +316,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <button type="button" className="btn-back" onClick={onBack}>
           ← Retour
         </button>
-        <h1 className="profile-title">Tableau d'Enquêteur & Profil</h1>
+        <h1 className="profile-title">Tableau d'Enquêteur & Carte</h1>
       </div>
 
       {/* Carte d'identité Enquêteur */}
@@ -191,244 +369,36 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         )}
       </div>
 
-      {/* Tableau d'Investigation : Carte de Corse avec Épingles Rouges */}
+      {/* Tableau d'Investigation : Vraie Carte du monde centrée sur la Corse avec Épingles Rouges */}
       <div className="investigation-board">
         <div className="board-header">
           <div>
-            <h2 className="board-title">📍 Carte d'Investigation — Corse</h2>
+            <h2 className="board-title">🌍 Carte Géographique — Corse</h2>
             <p className="board-subtitle">
-              Vos découvertes de terrain épinglées comme dans un véritable quartier général d'enquêteur.
+              Carte du monde réelle centrée sur l'île de Beauté. Vos explorations sont épinglées avec de véritables punaises d'enquêteur.
             </p>
           </div>
-          <div className="pins-count-badge">
-            📌 {completedItems.length} épingle{completedItems.length > 1 ? 's' : ''} plantée{completedItems.length > 1 ? 's' : ''}
+          <div className="board-controls-wrap">
+            <button type="button" className="btn-map-control" onClick={handleRecenterCorsica} title="Centrer la Corse">
+              🎯 Corse
+            </button>
+            {completedItems.length > 0 && (
+              <button type="button" className="btn-map-control btn-map-control-pins" onClick={handleFitPins} title="Voir toutes mes épingles">
+                📌 Mes épingles
+              </button>
+            )}
+            <div className="pins-count-badge">
+              📌 {completedItems.length} épingle{completedItems.length > 1 ? 's' : ''}
+            </div>
           </div>
         </div>
 
-        <div className="corkboard-frame">
-          <svg
-            className="corsica-map-svg"
-            viewBox="0 0 500 700"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <defs>
-              {/* Ombre portée réaliste sous la Corse */}
-              <filter id="corkboard-shadow" x="-10%" y="-10%" width="130%" height="130%">
-                <feDropShadow dx="3" dy="6" stdDeviation="6" floodColor="#2b1810" floodOpacity="0.3" />
-              </filter>
-
-              {/* Ombre de l'épingle rouge */}
-              <filter id="pin-shadow" x="-50%" y="-50%" width="200%" height="200%">
-                <feDropShadow dx="3" dy="5" stdDeviation="3" floodColor="#1a0500" floodOpacity="0.45" />
-              </filter>
-
-              {/* Dégradé sphérique 3D pour la tête d'épingle rouge */}
-              <radialGradient id="red-pin-ball" cx="35%" cy="32%" r="65%">
-                <stop offset="0%" stopColor="#ff8a80" />
-                <stop offset="25%" stopColor="#ef4444" />
-                <stop offset="65%" stopColor="#dc2626" />
-                <stop offset="90%" stopColor="#991b1b" />
-                <stop offset="100%" stopColor="#450a0a" />
-              </radialGradient>
-
-              {/* Reflet brillant de l'épingle */}
-              <radialGradient id="pin-glint" cx="40%" cy="35%" r="45%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
-                <stop offset="50%" stopColor="#ffffff" stopOpacity="0.4" />
-                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-              </radialGradient>
-
-              {/* Pointe métallique argentée */}
-              <linearGradient id="metal-needle" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#f1f5f9" />
-                <stop offset="50%" stopColor="#94a3b8" />
-                <stop offset="100%" stopColor="#475569" />
-              </linearGradient>
-
-              {/* Texture papier carte vintage */}
-              <linearGradient id="island-fill" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#f4ede1" />
-                <stop offset="50%" stopColor="#ede2cf" />
-                <stop offset="100%" stopColor="#e3d4bc" />
-              </linearGradient>
-            </defs>
-
-            {/* Mer Méditerranée / Texture de fond */}
-            <rect width="500" height="700" fill="#e9f1ee" rx="16" />
-
-            {/* Lignes topographiques marines / grille nautique */}
-            <g stroke="#d5e3dc" strokeWidth="0.8" strokeDasharray="4 6" opacity="0.6">
-              <line x1="0" y1="175" x2="500" y2="175" />
-              <line x1="0" y1="350" x2="500" y2="350" />
-              <line x1="0" y1="525" x2="500" y2="525" />
-              <line x1="166" y1="0" x2="166" y2="700" />
-              <line x1="333" y1="0" x2="333" y2="700" />
-            </g>
-
-            {/* Silhouette géographique précise de la Corse */}
-            <path
-              filter="url(#corkboard-shadow)"
-              d="
-                M 368 45
-                C 375 52, 382 75, 380 98
-                C 377 120, 395 150, 395 175
-                C 395 210, 420 270, 415 320
-                C 410 370, 418 420, 412 470
-                C 405 520, 410 560, 395 590
-                C 380 615, 350 645, 320 655
-                C 290 660, 275 640, 260 625
-                C 240 600, 215 570, 200 540
-                C 185 520, 160 500, 140 480
-                C 125 460, 130 435, 145 420
-                C 160 405, 155 380, 140 360
-                C 125 340, 120 310, 140 280
-                C 155 255, 170 230, 190 205
-                C 210 180, 240 160, 265 135
-                C 285 115, 310 90, 325 65
-                C 340 45, 358 38, 368 45
-                Z
-              "
-              fill="url(#island-fill)"
-              stroke="#b5a285"
-              strokeWidth="2.5"
-            />
-
-            {/* Reliefs intérieurs & massifs de montagne (Monte Cinto / Rotondo) */}
-            <g fill="none" stroke="#cfbe9f" strokeWidth="1.2" opacity="0.7">
-              <path d="M 270 210 Q 285 230 300 260 Q 280 290 260 320" />
-              <path d="M 250 270 Q 280 300 295 340 Q 270 380 245 410" />
-              <path d="M 310 150 Q 330 180 340 220" />
-              <path d="M 220 440 Q 240 480 260 520" />
-            </g>
-
-            {/* Repères des grandes villes (écritures d'archive) */}
-            <g className="map-city-labels">
-              <text x="140" y="445" fontSize="12" fontWeight="700" fill="#2d4a3e" textAnchor="end">Ajaccio</text>
-              <circle cx="148" cy="441" r="3" fill="#2d4a3e" />
-
-              <text x="390" y="172" fontSize="12" fontWeight="700" fill="#2d4a3e" textAnchor="start">Bastia</text>
-              <circle cx="382" cy="168" r="3" fill="#2d4a3e" />
-
-              <text x="290" y="310" fontSize="12" fontWeight="700" fill="#2d4a3e" textAnchor="start">Corte</text>
-              <circle cx="282" cy="306" r="3" fill="#2d4a3e" />
-            </g>
-
-            {/* Repères des quêtes non encore visitées (petits cercles discrets) */}
-            {catalog?.quests.map((q) => {
-              const isCompleted = completedItems.some((ci) => ci.completion.questId === q.id);
-              if (isCompleted) return null;
-              const { x, y } = projectCoords(q.lat, q.lng);
-              return (
-                <g key={`unvisited-${q.id}`} opacity="0.4">
-                  <circle cx={x} cy={y} r="3.5" fill="#94a3b8" />
-                  <circle cx={x} cy={y} r="7" stroke="#94a3b8" strokeWidth="1" strokeDasharray="2 2" fill="none" />
-                </g>
-              );
-            })}
-
-            {/* Fil rouge d'enquête reliant les étapes visitées */}
-            {completedItems.length > 1 && (
-              <polyline
-                points={completedItems.map((item) => `${item.x},${item.y}`).join(' ')}
-                fill="none"
-                stroke="#dc2626"
-                strokeWidth="1.8"
-                strokeDasharray="4 4"
-                opacity="0.65"
-              />
-            )}
-
-            {/* ÉPINGLES ROUGES D'ENQUÊTEUR (Tête ronde et rouge brillante) */}
-            {completedItems.map((item) => {
-              const isSelected = selectedPinId === item.completion.questId;
-              const pinRadius = isSelected ? 12 : 9.5;
-
-              return (
-                <g
-                  key={`pin-${item.completion.questId}`}
-                  className={`detective-pin-group ${isSelected ? 'pin-selected' : ''}`}
-                  onClick={() => setSelectedPinId(isSelected ? null : item.completion.questId)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  {/* Ombre portée de la tête d'épingle */}
-                  <ellipse
-                    cx={item.x + 4}
-                    cy={item.y + 4}
-                    rx={pinRadius * 0.9}
-                    ry={pinRadius * 0.55}
-                    fill="rgba(20, 5, 0, 0.4)"
-                    filter="url(#pin-shadow)"
-                  />
-
-                  {/* Pointe métallique (aiguille plantée dans la carte) */}
-                  <polygon
-                    points={`
-                      ${item.x - 1.5},${item.y - pinRadius * 0.5}
-                      ${item.x + 1.5},${item.y - pinRadius * 0.5}
-                      ${item.x},${item.y}
-                    `}
-                    fill="url(#metal-needle)"
-                  />
-
-                  {/* Tête ronde sphérique 3D rouge d'enquêteur */}
-                  <circle
-                    cx={item.x}
-                    cy={item.y - pinRadius * 0.9}
-                    r={pinRadius}
-                    fill="url(#red-pin-ball)"
-                    stroke="#7f1d1d"
-                    strokeWidth="0.8"
-                  />
-
-                  {/* Reflet de brillance sur la sphère */}
-                  <ellipse
-                    cx={item.x - pinRadius * 0.3}
-                    cy={item.y - pinRadius * 1.25}
-                    rx={pinRadius * 0.38}
-                    ry={pinRadius * 0.25}
-                    fill="url(#pin-glint)"
-                  />
-
-                  {/* Point blanc spéculaire pur */}
-                  <circle
-                    cx={item.x - pinRadius * 0.32}
-                    cy={item.y - pinRadius * 1.3}
-                    r={pinRadius * 0.16}
-                    fill="#ffffff"
-                    opacity="0.9"
-                  />
-
-                  {/* Nom du lieu au survol ou sélection */}
-                  {isSelected && (
-                    <g transform={`translate(${item.x}, ${item.y - pinRadius * 2 - 8})`}>
-                      <rect
-                        x="-70"
-                        y="-24"
-                        width="140"
-                        height="24"
-                        rx="12"
-                        fill="#1f2937"
-                        opacity="0.95"
-                      />
-                      <text
-                        x="0"
-                        y="-8"
-                        textAnchor="middle"
-                        fill="#ffffff"
-                        fontSize="11"
-                        fontWeight="600"
-                      >
-                        {item.quest?.name.slice(0, 18)}
-                      </text>
-                    </g>
-                  )}
-                </g>
-              );
-            })}
-          </svg>
+        {/* Cadre de la vraie carte Leaflet */}
+        <div className="real-map-wrapper">
+          <div ref={mapContainerRef} className="leaflet-map-element" />
         </div>
 
-        {/* Zoom / Fiche détaillée d'une quête épinglée sélectionnée */}
+        {/* Fiche détaillée Polaroid de l'épingle sélectionnée */}
         {selectedItem && (
           <div className="pinned-detail-card">
             <div className="pinned-card-header">
@@ -451,7 +421,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     className="polaroid-img"
                   />
                   <div className="polaroid-caption">
-                    📸 Photo terrain officielle
+                    📸 Preuve photo officielle
                   </div>
                 </div>
               ) : (
@@ -477,7 +447,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         {completedItems.length === 0 && (
           <div className="empty-pins-box">
             <p className="empty-pins-text">
-              🕵️‍♂️ Votre tableau d'enquête est encore vierge. Rendez-vous sur le terrain avec votre appareil photo pour planter votre première épingle rouge sur la carte !
+              🕵️‍♂️ Votre carte ne comporte encore aucune épingle rouge. Parcourez la Corse et validez une quête pour planter votre première punaise !
             </p>
             <button
               type="button"
@@ -490,7 +460,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         )}
       </div>
 
-      {/* Carnet des photos de terrain de l'utilisateur */}
+      {/* Carnet des photos de terrain */}
       {completedItems.length > 0 && (
         <div className="carnet-section">
           <h2 className="carnet-title">📸 Carnet de bord des explorations ({completedItems.length})</h2>
@@ -499,7 +469,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <div
                 key={`card-${item.completion.questId}`}
                 className={`carnet-card ${selectedPinId === item.completion.questId ? 'carnet-card-active' : ''}`}
-                onClick={() => setSelectedPinId(item.completion.questId)}
+                onClick={() => {
+                  setSelectedPinId(item.completion.questId);
+                  if (mapInstanceRef.current) {
+                    mapInstanceRef.current.setView([item.lat, item.lng], 14, { animate: true });
+                  }
+                }}
               >
                 <div className="carnet-img-wrap">
                   {item.photoUrl ? (
