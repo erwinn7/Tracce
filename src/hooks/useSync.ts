@@ -6,6 +6,7 @@ import {
   setDoc,
   onSnapshot,
   getDocs,
+  arrayUnion,
 } from 'firebase/firestore';
 import { db, auth, isFirebaseConfigured } from '../lib/firebase';
 import {
@@ -14,6 +15,7 @@ import {
   mergeRemoteCompletions,
   type LocalCompletion,
 } from '../lib/db';
+import type { AuthUser } from './useAuth';
 
 export type SyncState = 'synced' | 'pending' | 'offline';
 
@@ -25,7 +27,10 @@ export interface UseSyncReturn {
   syncOneCompletion: (completion: LocalCompletion) => void;
 }
 
-export function useSync(onRemoteMerged?: () => void): UseSyncReturn {
+export function useSync(
+  onRemoteMerged?: () => void,
+  authUser?: AuthUser | null
+): UseSyncReturn {
   const [isOnline, setIsOnline] = useState<boolean>(() =>
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
@@ -64,6 +69,26 @@ export function useSync(onRemoteMerged?: () => void): UseSyncReturn {
     return () => unsubscribe();
   }, []);
 
+  // 2bis. Enregistrement et mise à jour de l'ID utilisateur en ligne dans Firestore (users/{uid})
+  useEffect(() => {
+    if (!db || !currentUser) return;
+
+    const userDocRef = doc(db, 'users', currentUser.uid);
+    setDoc(
+      userDocRef,
+      {
+        uid: currentUser.uid,
+        username: authUser?.username || 'Explorateur anonyme',
+        isAdmin: authUser?.isAdmin || false,
+        isAnonymous: currentUser.isAnonymous,
+        lastSeenAt: new Date().toISOString(),
+      },
+      { merge: true }
+    ).catch((err) => {
+      console.warn('[Sync] Enregistrement profil user dans Firestore:', err);
+    });
+  }, [currentUser, authUser]);
+
   // 3. Écriture sans bloquer l'UI d'une completion vers Firestore
   const syncOneCompletion = useCallback((c: LocalCompletion) => {
     // Les validations démo ne sont JAMAIS envoyées vers Firestore
@@ -93,7 +118,23 @@ export function useSync(onRemoteMerged?: () => void): UseSyncReturn {
       .catch((err) => {
         console.warn('[Sync] setDoc différé par Firestore cache:', err);
       });
-  }, []);
+
+    // Mise à jour de l'ID et de la progression de l'utilisateur dans users/{uid}
+    const userDocRef = doc(db, 'users', user.uid);
+    setDoc(
+      userDocRef,
+      {
+        uid: user.uid,
+        username: authUser?.username || 'Explorateur anonyme',
+        isAdmin: authUser?.isAdmin || false,
+        lastSeenAt: new Date().toISOString(),
+        lastCompletedQuest: c.questId,
+        lastCompletedAt: c.completedAt,
+        completedQuests: arrayUnion(c.questId),
+      },
+      { merge: true }
+    ).catch(console.warn);
+  }, [authUser]);
 
   // 4. Synchronisation complète : écriture des locaux en attente + lecture Firestore pour union
   const triggerSync = useCallback(async () => {
@@ -117,6 +158,22 @@ export function useSync(onRemoteMerged?: () => void): UseSyncReturn {
       // Étape A : Envoyer les quêtes locales non marquées comme synchronisées (et non démo)
       const locals = await getAllCompletions();
       const unsynced = locals.filter((c) => !c.isDemo && !c.syncedToFirestore);
+
+      if (unsynced.length > 0) {
+        const questIds = unsynced.map((c) => c.questId);
+        const userDocRef = doc(db, 'users', user.uid);
+        setDoc(
+          userDocRef,
+          {
+            uid: user.uid,
+            username: authUser?.username || 'Explorateur anonyme',
+            isAdmin: authUser?.isAdmin || false,
+            lastSeenAt: new Date().toISOString(),
+            completedQuests: arrayUnion(...questIds),
+          },
+          { merge: true }
+        ).catch(console.warn);
+      }
 
       for (const c of unsynced) {
         const payload = {
@@ -167,7 +224,7 @@ export function useSync(onRemoteMerged?: () => void): UseSyncReturn {
     } finally {
       isSyncingRef.current = false;
     }
-  }, [onRemoteMerged]);
+  }, [onRemoteMerged, authUser]);
 
   // 5. Écoute des métadonnées du snapshot Firestore (hasPendingWrites)
   useEffect(() => {
@@ -178,62 +235,44 @@ export function useSync(onRemoteMerged?: () => void): UseSyncReturn {
       completionsCol,
       { includeMetadataChanges: true },
       (snapshot) => {
-        let pending = 0;
+        let count = 0;
         if (snapshot.metadata.hasPendingWrites) {
-          snapshot.docChanges().forEach((change) => {
-            if (change.doc.metadata.hasPendingWrites) {
-              pending += 1;
-            }
-          });
-          if (pending === 0) pending = 1; // Au moins un write en file d'attente
+          count = 1;
         }
-        setPendingWritesCount(pending);
+        for (const docChange of snapshot.docChanges()) {
+          if (docChange.doc.metadata.hasPendingWrites) {
+            count++;
+          }
+        }
+        setPendingWritesCount(count);
       },
       (err) => {
-        console.warn('[Sync] onSnapshot warning:', err);
+        console.warn('[Sync] Écoute completions:', err);
       }
     );
 
     return () => unsubscribe();
   }, [currentUser]);
 
-  // 6. Déclenchement sur online et visibilitychange (remplace Background Sync absent d'iOS)
+  // 6. Calcul de l'état dérivé (synced / pending / offline)
+  let syncState: SyncState = 'synced';
+  if (!isOnline) {
+    syncState = 'offline';
+  } else if (pendingWritesCount > 0) {
+    syncState = 'pending';
+  }
+
+  // 7. Déclenchement de la synchronisation au retour du réseau
   useEffect(() => {
-    const handleResume = () => {
-      if (document.visibilityState === 'visible' && navigator.onLine) {
-        triggerSync();
-      }
-    };
-
-    const handleNetworkReturn = () => {
-      triggerSync();
-    };
-
-    window.addEventListener('online', handleNetworkReturn);
-    document.addEventListener('visibilitychange', handleResume);
-
-    // Tentative initiale au montage
-    if (navigator.onLine) {
+    if (isOnline) {
       triggerSync();
     }
-
-    return () => {
-      window.removeEventListener('online', handleNetworkReturn);
-      document.removeEventListener('visibilitychange', handleResume);
-    };
-  }, [triggerSync]);
-
-  // Calcul de l'état visible de synchronisation
-  const syncState: SyncState = !isOnline
-    ? 'offline'
-    : pendingWritesCount > 0
-    ? 'pending'
-    : 'synced';
+  }, [isOnline, triggerSync]);
 
   return {
     syncState,
     pendingCount: pendingWritesCount,
-    uid: currentUser ? currentUser.uid : null,
+    uid: currentUser?.uid ?? null,
     triggerSync,
     syncOneCompletion,
   };

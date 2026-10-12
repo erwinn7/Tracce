@@ -3,27 +3,26 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Quêtes créées en ligne par l'administrateur (M4 / Admin)
-    // Lecture publique pour tous les joueurs sur smartphone
-    // Écriture autorisée pour synchroniser les nouveaux lieux
+    // Quêtes du catalogue (les 12 quêtes initiales + ajouts admin)
+    match /quests/{questId} {
+      allow read, write: if true;
+    }
+
+    // Quêtes personnalisées (compatibilité)
     match /custom_quests/{questId} {
       allow read, write: if true;
     }
 
-    // Complétions de quêtes de chaque utilisateur (M3)
+    // Profils et identifiants des utilisateurs (UID)
+    // Permet de stocker l'ID de l'utilisateur, son pseudo, ses points et sa progression
+    match /users/{uid} {
+      allow read, write: if true;
+    }
+
+    // Complétions de quêtes de chaque utilisateur
     // Structure : users/{uid}/completions/{questId}
     match /users/{uid}/completions/{questId} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
-      allow create, update: if request.auth != null
-        && request.auth.uid == uid
-        && request.resource.data.questId == questId
-        && request.resource.data.keys().hasOnly(['questId', 'completedAt', 'lat', 'lng', 'accuracyM', 'distanceToTargetM'])
-        && request.resource.data.lat is number
-        && request.resource.data.lng is number
-        && request.resource.data.accuracyM is number
-        && request.resource.data.distanceToTargetM is number
-        && (request.resource.data.completedAt is timestamp || request.resource.data.completedAt is string || request.resource.data.completedAt is number);
-      allow delete: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if true;
     }
   }
 }

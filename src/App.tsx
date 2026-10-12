@@ -76,7 +76,7 @@ function App() {
     refreshCompletions();
   }, [refreshCompletions]);
 
-  const { syncState, pendingCount, syncOneCompletion } = useSync(handleRemoteMerged);
+  const { syncState, pendingCount, syncOneCompletion } = useSync(handleRemoteMerged, authUser);
 
   // Navigation & Drawer
   const [currentScreen, setCurrentScreen] = useState<Screen>('welcome');
