@@ -3,18 +3,18 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
-  base: '/app/',
+  base: '/',
   build: {
-    outDir: 'dist/app',
+    outDir: 'dist',
   },
   server: {
-    open: '/app/',
+    open: '/',
   },
   plugins: [
     react(),
     VitePWA({
       registerType: 'prompt',
-      scope: '/app/',
+      scope: '/',
       includeAssets: ['favicon.svg', 'hero-landscape.svg', 'data/quests.json', 'icons/logo.png'],
       manifest: {
         name: 'Tracce',
@@ -24,8 +24,8 @@ export default defineConfig({
         theme_color: '#2D4A3E',
         background_color: '#ffffff',
         display: 'standalone',
-        scope: '/app/',
-        start_url: '/app/',
+        scope: '/',
+        start_url: '/',
         lang: 'fr',
         icons: [
           {
@@ -48,8 +48,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,json}'],
-        navigateFallback: '/app/index.html',
-        navigateFallbackDenylist: [/^\/__/], // Évite d'intercepter les URL internes Firebase
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/__/, /^\/lieux\//, /^\/villes\//, /^\/robots\.txt/, /^\/sitemap\.xml/, /^\/llms\.txt/], // Évite d'intercepter les URL Firebase et SEO statiques
         runtimeCaching: [
           {
             // CacheFirst pour les images (SVG, PNG, JPG, WebP) hors précache avec plafond d'âge et d'entrées

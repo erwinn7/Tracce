@@ -98,7 +98,7 @@ function generateHtmlShell(title: string, description: string, canonicalUrl: str
   <meta property="og:url" content="${canonicalUrl}">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="fr_FR">
-  <link rel="icon" type="image/svg+xml" href="/app/favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <script type="application/ld+json">
     ${jsonLd}
   </script>
@@ -210,7 +210,7 @@ function generateHtmlShell(title: string, description: string, canonicalUrl: str
           <div style="font-size:0.85rem; color:var(--color-text-muted);">Rally photo géolocalisé en Corse</div>
         </div>
       </a>
-      <a href="/app/" class="btn-app">Ouvrir l'application →</a>
+      <a href="/" class="btn-app">Lancer l'application →</a>
     </header>
 
     <main>
@@ -219,7 +219,7 @@ function generateHtmlShell(title: string, description: string, canonicalUrl: str
 
     <footer>
       <p>Données géographiques : <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© contributeurs OpenStreetMap</a> (ODbL). Projet pédagogique Tracce PWA.</p>
-      <p><a href="/">Accueil</a> • <a href="/villes/ajaccio">Ajaccio</a> • <a href="/villes/bastia">Bastia</a> • <a href="/villes/corte">Corte</a> • <a href="/app/">Lancer la PWA</a></p>
+      <p><a href="/">Accueil / Application</a> • <a href="/villes/ajaccio">Ajaccio</a> • <a href="/villes/bastia">Bastia</a> • <a href="/villes/corte">Corte</a></p>
     </footer>
   </div>
 </body>
@@ -309,11 +309,39 @@ async function buildSeo() {
     </div>
   `;
 
+  // 1. Enrichir dist/index.html (généré par Vite pour la PWA) avec les balises SEO et noscript
+  const indexPath = path.join(DIST_DIR, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    let spaHtml = fs.readFileSync(indexPath, 'utf-8');
+    const seoHeadTags = `
+    <link rel="canonical" href="${SITE_URL}/">
+    <meta property="og:title" content="Tracce — Rally Photo Géolocalisé en Corse">
+    <meta property="og:description" content="Explorez Ajaccio, Bastia, Corte et les sommets de Corse à travers un rally photo géolocalisé.">
+    <meta property="og:url" content="${SITE_URL}/">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="${SITE_URL}/icons/logo-512.png">
+    <script type="application/ld+json">
+      ${JSON.stringify(homeStructuredData, null, 2)}
+    </script>`;
+    spaHtml = spaHtml.replace('</head>', `${seoHeadTags}\n  </head>`);
+
+    const noscriptBlock = `
+    <noscript>
+      <div style="max-width:800px;margin:2rem auto;padding:1rem;font-family:sans-serif;background:#fff;border-radius:8px;">
+        ${homeContent}
+      </div>
+    </noscript>`;
+    spaHtml = spaHtml.replace('</body>', `${noscriptBlock}\n  </body>`);
+
+    fs.writeFileSync(indexPath, spaHtml);
+    console.log('✅ dist/index.html PWA enrichi avec JSON-LD et fallback noscript SEO');
+  }
+
+  // Également générer presentation.html pour consultation statique pure
   fs.writeFileSync(
-    path.join(DIST_DIR, 'index.html'),
+    path.join(DIST_DIR, 'presentation.html'),
     generateHtmlShell('Tracce — Rally Photo Géolocalisé en Corse', 'Explorez Ajaccio, Bastia, Corte et les sommets de Corse à travers un rally photo géolocalisé.', `${SITE_URL}/`, homeStructuredData, homeContent)
   );
-  console.log('✅ Page d’accueil statique générée : dist/index.html');
 
   // 2. Pages des villes /villes/{cityId}.html et dossiers
   const villesDir = path.join(DIST_DIR, 'villes');
@@ -391,10 +419,19 @@ async function buildSeo() {
       </div>
     `;
 
-    fs.writeFileSync(
-      path.join(villesDir, `${cityId}.html`),
-      generateHtmlShell(`Quêtes photo à ${info.name} — Tracce Corse`, `Découvrez les quêtes géolocalisées à ${info.name} : citadelles, sentiers et sommets.`, cityUrl, cityStructuredData, cityContent)
+    const cityHtml = generateHtmlShell(
+      `Quêtes photo à ${info.name} — Tracce Corse`,
+      `Découvrez les quêtes géolocalisées à ${info.name} : citadelles, sentiers et sommets.`,
+      cityUrl,
+      cityStructuredData,
+      cityContent
     );
+
+    // Écrit à la fois /villes/ajaccio.html et /villes/ajaccio/index.html pour éviter tout 404
+    fs.writeFileSync(path.join(villesDir, `${cityId}.html`), cityHtml);
+    const citySubDir = path.join(villesDir, cityId);
+    fs.mkdirSync(citySubDir, { recursive: true });
+    fs.writeFileSync(path.join(citySubDir, 'index.html'), cityHtml);
   }
   console.log('✅ Pages villes statiques générées dans dist/villes/');
 
@@ -537,12 +574,21 @@ async function buildSeo() {
       </div>
     `;
 
-    fs.writeFileSync(
-      path.join(lieuxDir, `${quest.id}.html`),
-      generateHtmlShell(`${quest.name} (${cityName}) — Quête Tracce Corse`, quest.description, questUrl, questStructuredData, questContent)
+    const questHtml = generateHtmlShell(
+      `${quest.name} (${cityName}) — Quête Tracce Corse`,
+      quest.description,
+      questUrl,
+      questStructuredData,
+      questContent
     );
+
+    // Écrit à la fois /lieux/id.html et /lieux/id/index.html pour garantir 0 erreur 404
+    fs.writeFileSync(path.join(lieuxDir, `${quest.id}.html`), questHtml);
+    const lieuSubDir = path.join(lieuxDir, quest.id);
+    fs.mkdirSync(lieuSubDir, { recursive: true });
+    fs.writeFileSync(path.join(lieuSubDir, 'index.html'), questHtml);
   }
-  console.log('✅ Pages lieux statiques générées dans dist/lieux/');
+  console.log('✅ Pages lieux statiques générées dans dist/lieux/ (fichiers .html et dossiers /index.html)');
 
   // Copie des icônes et médias à la racine de dist/ pour le site statique
   if (fs.existsSync(path.resolve('public/icons'))) {
@@ -555,7 +601,6 @@ async function buildSeo() {
   // 4. robots.txt
   const robotsTxt = `User-agent: *
 Allow: /
-Disallow: /app/
 Disallow: /s/
 
 User-agent: GPTBot
@@ -615,7 +660,7 @@ ${catalog.quests.map((q) => `- ${SITE_URL}/lieux/${q.id} : ${q.name} (${CITY_DET
 ## Informations techniques
 - Données ouvertes : Sources issues d'OpenStreetMap et Wikidata.
 - Validation : Présence physique requise dans le rayon GPS de chaque cible.
-- Accès WebApp PWA : ${SITE_URL}/app/
+- Accès WebApp PWA : ${SITE_URL}/
 `;
   fs.writeFileSync(path.join(DIST_DIR, 'llms.txt'), llmsTxt);
   console.log('✅ llms.txt généré.');
