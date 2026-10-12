@@ -25,16 +25,6 @@ Projet réalisé dans le cadre du module **M2 DWM — Développement PWA**.
 
 ---
 
-## 🔐 Identifiants Administrateur
-
-Pour tester l'ajout de nouveaux lieux et les outils d'administration :
-- **Identifiant** : `erwinn`
-- **Mot de passe** : `pwaErwinn`
-
-*(Pour les utilisateurs simples ou non connectés, les boutons techniques tels que le mode démo ou la synchronisation brute sont automatiquement masqués).*
-
----
-
 ## 🛠️ Stack Technique
 
 - **Front-end** : [Vite](https://vitejs.dev/) + [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
