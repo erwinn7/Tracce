@@ -8,13 +8,20 @@ interface WelcomeScreenProps {
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart, totalQuests }) => {
   return (
     <div className="welcome-screen">
-      {/* Illustration Hero animée */}
+      {/* Illustration Hero animée avec logo officiel */}
       <div className="welcome-hero-wrap">
         <img
           src={`${import.meta.env.BASE_URL}hero-landscape.svg`}
           alt="Paysage corse entre mer et monts"
           className="welcome-hero-img"
         />
+        <div className="welcome-brand-overlay">
+          <img
+            src={`${import.meta.env.BASE_URL}icons/logo.png`}
+            alt="Logo officiel Tracce"
+            className="welcome-brand-logo"
+          />
+        </div>
         <div className="welcome-hero-badge">
           <span>🌿 Exploration insulaire</span>
         </div>
@@ -27,6 +34,29 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart, totalQues
         <p className="welcome-lead">
           <strong>Tracce</strong> est un rally photo géolocalisé qui vous emmène au cœur des trésors d’Ajaccio, Bastia, Corte et des sommets environnants.
         </p>
+
+        {/* Vidéo de présentation en immersion */}
+        <div className="welcome-video-card">
+          <div className="welcome-video-header">
+            <span className="video-badge">🎬 En immersion</span>
+            <h3 className="video-title">Découvrez l'aventure en vidéo</h3>
+          </div>
+          <div className="welcome-video-player-wrap">
+            <video
+              className="welcome-video-player"
+              controls
+              playsInline
+              preload="metadata"
+              poster={`${import.meta.env.BASE_URL}icons/logo-512.png`}
+            >
+              <source src={`${import.meta.env.BASE_URL}media/tracce-teaser.mp4`} type="video/mp4" />
+              Votre navigateur ne prend pas en charge la lecture vidéo.
+            </video>
+          </div>
+          <p className="welcome-video-caption">
+            Des ruelles génoises aux aiguilles rocheuses, suivez la trace et capturez chaque étape.
+          </p>
+        </div>
 
         {/* 3 Cartes illustratives de parcours */}
         <div className="welcome-steps-grid">

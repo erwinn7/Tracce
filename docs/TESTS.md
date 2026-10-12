@@ -93,4 +93,7 @@
 | 6 | Masquage du mode démo pour l'utilisateur standard | Navigateur / Mobile | ✅ Réussi | Barre de contrôle démo invisible hors session administrateur |
 | 7 | Masquage de l'indicateur de synchronisation hors admin | Navigateur / Mobile | ✅ Réussi | Statut de synchronisation Cloud Firestore visible uniquement par l'admin (`erwinn`) |
 | 8 | Accès administration et ajout de quête | Compte `erwinn` / Formulaire | ✅ Réussi | Page « Ajouter une quête » accessible uniquement avec identifiants admin |
+| 9 | Capture directe GPS lors de l'ajout d'une quête | Formulaire Admin / Mobile | ✅ Réussi | Bouton « Utiliser ma position actuelle » remplit latitude, longitude, altitude et affiche la précision |
+| 10 | Découpage logo et lecteur vidéo de présentation | Page d'accueil / Desktop & Mobile | ✅ Réussi | Logo découpé en formats 192/256/512/maskable, vidéo MP4 intégrée sur la page d'accueil et la landing SEO |
+
 

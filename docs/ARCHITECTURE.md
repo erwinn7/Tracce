@@ -236,6 +236,11 @@ Aucune notification en v1 de base (justification : le rally est une activité po
     - Page d'accueil : `@type: WebSite`.
   - **Correspondance stricte FAQ** : chaque question/réponse du balisage JSON-LD correspond mot à mot au texte HTML visible sur la page.
   - **Accessibilité sans JS** : 100 % du contenu éditorial, tableaux de données et FAQ est lisible même si JavaScript est désactivé dans le navigateur.
+  - **Médias & Vidéo immersive** :
+    - Découpage du logo officiel en dimensions optimisées (`public/icons/` : 192px, 256px, 512px et maskable PWA).
+    - Teaser vidéo de présentation intégré (`public/media/tracce-teaser.mp4`) en lecteur HTML5 non intrusif (`controls`, `playsinline`, `preload="metadata"`).
+    - Formulaire d'ajout de lieu pour l'administrateur avec capture GPS terrain en un clic (`navigator.geolocation.getCurrentPosition`) avec précision en mètres et altitude.
+
 
 ## 10. Sécurité et vie privée
 

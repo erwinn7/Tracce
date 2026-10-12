@@ -15,7 +15,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       scope: '/app/',
-      includeAssets: ['favicon.svg', 'hero-landscape.svg', 'data/quests.json'],
+      includeAssets: ['favicon.svg', 'hero-landscape.svg', 'data/quests.json', 'icons/logo.png'],
       manifest: {
         name: 'Tracce',
         short_name: 'Tracce',

@@ -183,7 +183,7 @@ function App() {
             role="button"
             tabIndex={0}
           >
-            <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="Logo Tracce" className="app-logo" />
+            <img src={`${import.meta.env.BASE_URL}icons/logo.png`} alt="Logo Tracce" className="app-logo" />
             <div className="header-titles">
               <h1 className="app-title">Tracce</h1>
               <p className="app-subtitle">Rally photo en Corse</p>

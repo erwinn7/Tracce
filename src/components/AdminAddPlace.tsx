@@ -18,6 +18,55 @@ export const AdminAddPlace: React.FC<AdminAddPlaceProps> = ({ onAddQuest, onBack
   const [points, setPoints] = useState('10');
   const [successMsg, setSuccessMsg] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [geoFeedback, setGeoFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Géolocalisation directe de l'administrateur sur le terrain
+  const handleUseCurrentPosition = () => {
+    if (!('geolocation' in navigator)) {
+      setGeoFeedback({
+        type: 'error',
+        message: 'La géolocalisation n’est pas prise en charge par ce navigateur.',
+      });
+      return;
+    }
+
+    setLocating(true);
+    setGeoFeedback(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false);
+        const { latitude, longitude, accuracy, altitude } = pos.coords;
+        setLat(latitude.toFixed(6));
+        setLng(longitude.toFixed(6));
+        if (altitude !== null && altitude !== undefined && !isNaN(altitude)) {
+          setAltitudeM(Math.round(altitude).toString());
+        }
+        setGeoFeedback({
+          type: 'success',
+          message: `Position captée avec succès (Précision : ±${Math.round(accuracy)} m)`,
+        });
+      },
+      (err) => {
+        setLocating(false);
+        let msg = 'Impossible de capter la position.';
+        if (err.code === err.PERMISSION_DENIED) {
+          msg = 'Autorisation GPS refusée. Veuillez activer la localisation.';
+        } else if (err.code === err.TIMEOUT) {
+          msg = 'Délai GPS dépassé. Veuillez réessayer à ciel ouvert.';
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          msg = 'Signal GPS non disponible.';
+        }
+        setGeoFeedback({ type: 'error', message: msg });
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      }
+    );
+  };
 
   // Ajustement automatique des points / rayons recommandés selon le type
   const handleTypeChange = (newType: QuestType) => {
@@ -148,6 +197,22 @@ export const AdminAddPlace: React.FC<AdminAddPlaceProps> = ({ onAddQuest, onBack
               onChange={(e) => setDescription(e.target.value)}
               required
             />
+          </div>
+
+          <div className="geo-locate-action">
+            <button
+              type="button"
+              className="btn-locate-current"
+              onClick={handleUseCurrentPosition}
+              disabled={locating}
+            >
+              {locating ? '⏳ Acquisition GPS en cours...' : '📍 Utiliser ma position actuelle'}
+            </button>
+            {geoFeedback && (
+              <div className={`geo-feedback ${geoFeedback.type}`}>
+                {geoFeedback.message}
+              </div>
+            )}
           </div>
 
           <div className="form-row">

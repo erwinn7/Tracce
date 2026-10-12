@@ -203,12 +203,13 @@ function generateHtmlShell(title: string, description: string, canonicalUrl: str
 <body>
   <div class="seo-container">
     <header>
-      <div>
-        <a href="/" style="text-decoration:none; color:inherit;">
+      <a href="/" style="text-decoration:none; color:inherit; display:flex; align-items:center; gap:0.6rem;">
+        <img src="/icons/logo.png" alt="Logo Tracce" style="width:38px; height:38px; border-radius:8px; object-fit:contain;" />
+        <div>
           <strong style="color:var(--color-primary); font-size:1.3rem;">Tracce</strong>
-        </a>
-        <div style="font-size:0.85rem; color:var(--color-text-muted);">Rally photo géolocalisé en Corse</div>
-      </div>
+          <div style="font-size:0.85rem; color:var(--color-text-muted);">Rally photo géolocalisé en Corse</div>
+        </div>
+      </a>
       <a href="/app/" class="btn-app">Ouvrir l'application →</a>
     </header>
 
@@ -244,6 +245,15 @@ async function buildSeo() {
   const homeContent = `
     <h1>Tracce — Rally Photo Géolocalisé en Corse</h1>
     <p><strong>Tracce</strong> est une Progressive Web App dédiée à la découverte du patrimoine naturel et historique de la Corse. À travers 12 quêtes vérifiées réparties sur Ajaccio, Bastia et Corte, explorez citadelles génoises, lacs d'altitude et sommets emblématiques, validez votre présence par GPS et immortalisez chaque étape en photo.</p>
+
+    <div class="card" style="text-align: center;">
+      <h2 style="margin-top:0;">Découvrez l'expérience Tracce en vidéo</h2>
+      <p style="color: var(--color-text-muted); margin-bottom: 1rem;">Un aperçu en immersion du rallye photo et des panoramas insulaires.</p>
+      <video controls playsinline preload="metadata" poster="/icons/logo-512.png" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+        <source src="/media/tracce-teaser.mp4" type="video/mp4" />
+        Votre navigateur ne prend pas en charge la lecture de vidéos.
+      </video>
+    </div>
 
     <div class="card">
       <h2>Les Territoires d'exploration</h2>
@@ -533,6 +543,14 @@ async function buildSeo() {
     );
   }
   console.log('✅ Pages lieux statiques générées dans dist/lieux/');
+
+  // Copie des icônes et médias à la racine de dist/ pour le site statique
+  if (fs.existsSync(path.resolve('public/icons'))) {
+    fs.cpSync(path.resolve('public/icons'), path.join(DIST_DIR, 'icons'), { recursive: true });
+  }
+  if (fs.existsSync(path.resolve('public/media'))) {
+    fs.cpSync(path.resolve('public/media'), path.join(DIST_DIR, 'media'), { recursive: true });
+  }
 
   // 4. robots.txt
   const robotsTxt = `User-agent: *
