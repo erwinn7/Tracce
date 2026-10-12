@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Pin (drop shape) -->
+  <path d="M256 28C159 28 80 107 80 204c0 128 176 276 176 276s176-148 176-276C432 107 353 28 256 28z" fill="#2D4A3E"/>
+  <!-- White inner circle -->
+  <circle cx="256" cy="192" r="80" fill="#fff"/>
+  <!-- Mountain peaks -->
+  <path d="M206 244 l30-52 20 24 24-40 24 40 20-24 30 52z" fill="#2D4A3E" stroke="#2D4A3E" stroke-width="1" stroke-linejoin="round"/>
+</svg>
